@@ -6,21 +6,26 @@ import {
   Controls,
   MarkerType,
   MiniMap,
+  Position,
   ReactFlow,
   useNodesState,
 } from "@xyflow/react";
 import type { Edge, Node } from "@xyflow/react";
-import { Alert, Button, Space, Tag, Typography } from "antd";
+import { Alert, Button, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import {
+  CODEGRAPH_NODE_WIDTH,
+  codeGraphExpansionKey,
   codeGraphEdgeKey,
   codeGraphKindLabel,
   deriveCodeGraph,
   layoutCodeGraph,
   MAX_CODEGRAPH_EDGES,
   MAX_CODEGRAPH_NODES,
+  pruneCodeGraphExpansions,
 } from "../lib/codeGraph";
+import type { CodeGraphExpansionRequest } from "../lib/codeGraph";
 import type { CodeGraphDirection, CodeGraphSymbol } from "../types";
 import "@xyflow/react/dist/style.css";
 
@@ -29,16 +34,8 @@ interface CodeGraphCanvasProps {
   rootSymbol?: CodeGraphSymbol;
 }
 
-interface ExpansionRequest {
-  symbol: CodeGraphSymbol;
-  depth: number;
-  direction: CodeGraphDirection;
-}
-
-const expansionKey = (request: ExpansionRequest) => `${request.symbol.id}:${request.direction}`;
-
 export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps) {
-  const [expansions, setExpansions] = useState<ExpansionRequest[]>([]);
+  const [expansions, setExpansions] = useState<CodeGraphExpansionRequest[]>([]);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
 
   useEffect(() => {
@@ -59,79 +56,104 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
   const dataRevision = relationQueries.map((query) => query.dataUpdatedAt).join(":");
   const loadingRevision = relationQueries.map((query) => query.isFetching ? "1" : "0").join("");
 
-  const graph = useMemo(() => deriveCodeGraph(rootSymbol, expansions.map((request, index) => ({
+  const expansionResults = useMemo(() => expansions.map((request, index) => ({
+    symbol: request.symbol,
     direction: request.direction,
     depth: request.depth,
     page: relationQueries[index]?.data,
-  // dataUpdatedAt 是 Query 拥有的结果版本；避免把服务端响应复制进本地 state。
-  }))), [dataRevision, expansions, rootSymbol]);
+    // dataUpdatedAt 是 Query 拥有的结果版本；避免把服务端响应复制进本地 state。
+  })), [dataRevision, expansions]);
+  const graph = useMemo(() => deriveCodeGraph(rootSymbol, expansionResults), [expansionResults, rootSymbol]);
 
-  const expandedKeys = useMemo(() => new Set(expansions.map(expansionKey)), [expansions]);
+  const expandedKeys = useMemo(() => new Set(expansions.map(codeGraphExpansionKey)), [expansions]);
   const loadingKeys = useMemo(() => new Set(expansions.flatMap((request, index) =>
-    relationQueries[index]?.isFetching ? [expansionKey(request)] : [])), [expansions, loadingRevision]);
+    relationQueries[index]?.isFetching ? [codeGraphExpansionKey(request)] : [])), [expansions, loadingRevision]);
   const queryError = relationQueries.find((query) => query.isError)?.error;
   const limitReached = graph.nodeLimitReached || graph.edgeLimitReached;
 
-  const expandSymbol = useCallback((
+  const toggleSymbol = useCallback((
     symbol: CodeGraphSymbol,
     depth: number,
     direction: CodeGraphDirection,
   ) => {
+    const request = { symbol, depth, direction };
+    const key = codeGraphExpansionKey(request);
+    if (expandedKeys.has(key)) {
+      const visible = pruneCodeGraphExpansions(rootSymbol, expansionResults, key);
+      setExpansions(visible.map((item) => ({
+        symbol: item.symbol,
+        depth: item.depth,
+        direction: item.direction,
+      })));
+      return;
+    }
     if (limitReached) return;
     setExpansions((current) => {
-      const request = { symbol, depth, direction };
-      return current.some((item) => expansionKey(item) === expansionKey(request)) ? current : [...current, request];
+      return current.some((item) => codeGraphExpansionKey(item) === key) ? current : [...current, request];
     });
-  }, [limitReached]);
+  }, [expandedKeys, expansionResults, limitReached, rootSymbol]);
 
   const positionedNodes = useMemo<Node[]>(() => layoutCodeGraph(graph.records.values()).map((record) => {
     const callerKey = `${record.symbol.id}:callers`;
     const calleeKey = `${record.symbol.id}:callees`;
+    const callersExpanded = expandedKeys.has(callerKey);
+    const calleesExpanded = expandedKeys.has(calleeKey);
     const isRoot = record.symbol.id === rootSymbol?.id;
     return {
       id: record.symbol.id,
       position: { x: record.x, y: record.y },
+      // 调用方始终位于左侧：边从右侧输出、从左侧进入，避免多层图沿卡片上下方共用纵向轨道。
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
       ariaLabel: `${codeGraphKindLabel(record.symbol.kind)} ${record.symbol.qualifiedName}`,
       className: `codegraph-node${isRoot ? " codegraph-node--root" : ""}`,
       data: {
         label: (
           <div className="codegraph-node-content">
-            <Space size={5} wrap>
+            <div className="codegraph-node-summary">
               <Tag color={isRoot ? "green" : undefined}>{codeGraphKindLabel(record.symbol.kind)}</Tag>
-              <Typography.Text type="secondary" className="mono">{record.symbol.language}</Typography.Text>
-            </Space>
-            <Typography.Text strong ellipsis={{ tooltip: record.symbol.qualifiedName }}>
-              {record.symbol.name}
-            </Typography.Text>
-            <Typography.Text type="secondary" className="codegraph-node-path" ellipsis={{ tooltip: record.symbol.filePath }}>
-              {record.symbol.filePath}:{record.symbol.startLine}
-            </Typography.Text>
-            <div className="codegraph-node-actions nodrag nowheel">
-              <Button
-                type="text"
-                size="small"
-                disabled={expandedKeys.has(callerKey) || limitReached}
-                icon={loadingKeys.has(callerKey) ? <LoadingOutlined /> : undefined}
-                onClick={() => expandSymbol(record.symbol, record.depth, "callers")}
-              >
-                上游
-              </Button>
-              <Button
-                type="text"
-                size="small"
-                disabled={expandedKeys.has(calleeKey) || limitReached}
-                icon={loadingKeys.has(calleeKey) ? <LoadingOutlined /> : undefined}
-                onClick={() => expandSymbol(record.symbol, record.depth, "callees")}
-              >
-                下游
-              </Button>
+              <Typography.Text type="secondary" className="mono codegraph-node-language">{record.symbol.language}</Typography.Text>
+              <Typography.Text strong className="codegraph-node-name" ellipsis={{ tooltip: record.symbol.qualifiedName }}>
+                {record.symbol.name}
+              </Typography.Text>
+            </div>
+            <div className="codegraph-node-detail">
+              <Typography.Text type="secondary" className="codegraph-node-path" ellipsis={{ tooltip: record.symbol.filePath }}>
+                {record.symbol.filePath}:{record.symbol.startLine}
+              </Typography.Text>
+              <div className="codegraph-node-actions nodrag nowheel">
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="上游"
+                  aria-pressed={callersExpanded}
+                  title={callersExpanded ? "收起上游" : "展开上游"}
+                  disabled={!callersExpanded && limitReached}
+                  icon={loadingKeys.has(callerKey) ? <LoadingOutlined /> : undefined}
+                  onClick={() => toggleSymbol(record.symbol, record.depth, "callers")}
+                >
+                  上游
+                </Button>
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="下游"
+                  aria-pressed={calleesExpanded}
+                  title={calleesExpanded ? "收起下游" : "展开下游"}
+                  disabled={!calleesExpanded && limitReached}
+                  icon={loadingKeys.has(calleeKey) ? <LoadingOutlined /> : undefined}
+                  onClick={() => toggleSymbol(record.symbol, record.depth, "callees")}
+                >
+                  下游
+                </Button>
+              </div>
             </div>
           </div>
         ),
       },
-      style: { width: 250 },
+      style: { width: CODEGRAPH_NODE_WIDTH },
     };
-  }), [expandSymbol, expandedKeys, graph.records, limitReached, loadingKeys, rootSymbol?.id]);
+  }), [expandedKeys, graph.records, limitReached, loadingKeys, rootSymbol?.id, toggleSymbol]);
 
   useEffect(() => {
     // 追加关系时保留用户已拖动坐标，只给新节点应用稳定分层布局。
@@ -148,7 +170,6 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
       id: codeGraphEdgeKey(relation),
       source: relation.source.id,
       target: relation.target.id,
-      label: relation.line ? `${relation.kind} · L${relation.line}` : relation.kind,
       type: "smoothstep",
       markerEnd: { type: MarkerType.ArrowClosed },
       className: "codegraph-edge",

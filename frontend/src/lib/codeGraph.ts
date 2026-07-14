@@ -15,9 +15,13 @@ export interface CodeGraphPositionedNode extends CodeGraphNodeRecord {
   y: number;
 }
 
-export interface CodeGraphExpansionResult {
+export interface CodeGraphExpansionRequest {
+  symbol: CodeGraphSymbol;
   direction: CodeGraphDirection;
   depth: number;
+}
+
+export interface CodeGraphExpansionResult extends CodeGraphExpansionRequest {
   page?: CodeGraphRelationPage;
 }
 
@@ -31,9 +35,10 @@ export interface CodeGraphDerivedGraph {
 
 export const MAX_CODEGRAPH_NODES = 300;
 export const MAX_CODEGRAPH_EDGES = 600;
+export const CODEGRAPH_NODE_WIDTH = 228;
 
-const COLUMN_GAP = 340;
-const ROW_GAP = 142;
+const COLUMN_GAP = 288;
+const ROW_GAP = 88;
 
 const kindLabels: Record<string, string> = {
   class: "类",
@@ -50,6 +55,46 @@ const kindLabels: Record<string, string> = {
 
 export function codeGraphKindLabel(kind: string): string {
   return kindLabels[kind] ?? (kind || "符号");
+}
+
+export function codeGraphExpansionKey(expansion: Pick<CodeGraphExpansionRequest, "symbol" | "direction">): string {
+  return `${expansion.symbol.id}:${expansion.direction}`;
+}
+
+/**
+ * 删除一个展开方向后，只保留仍能从根符号到达的展开请求。
+ * 共享节点和调用环会通过其他可见关系重新进入可达集合，因此不会被误删。
+ */
+export function pruneCodeGraphExpansions(
+  root: CodeGraphSymbol | undefined,
+  expansions: CodeGraphExpansionResult[],
+  collapsedKey: string,
+): CodeGraphExpansionResult[] {
+  if (!root) return [];
+  const remaining = expansions.filter((expansion) => codeGraphExpansionKey(expansion) !== collapsedKey);
+  const reachableDepths = new Map([[root.id, 0]]);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (const expansion of remaining) {
+      const centerDepth = reachableDepths.get(expansion.symbol.id);
+      if (centerDepth === undefined || !expansion.page) continue;
+      for (const relation of expansion.page.items) {
+        const adjacent = expansion.direction === "callers" ? relation.source : relation.target;
+        const candidateDepth = centerDepth + (expansion.direction === "callers" ? -1 : 1);
+        const nextDepth = nearestDepth(reachableDepths.get(adjacent.id), candidateDepth);
+        if (reachableDepths.get(adjacent.id) === nextDepth) continue;
+        reachableDepths.set(adjacent.id, nextDepth);
+        changed = true;
+      }
+    }
+  }
+
+  return remaining.flatMap((expansion) => {
+    const depth = reachableDepths.get(expansion.symbol.id);
+    return depth === undefined ? [] : [{ ...expansion, depth }];
+  });
 }
 
 /**

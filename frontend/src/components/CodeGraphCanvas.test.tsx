@@ -12,17 +12,32 @@ vi.mock("@xyflow/react", async () => ({
   BackgroundVariant: { Dots: "dots" },
   Controls: () => <div aria-label="调用链缩放控制" />,
   MarkerType: { ArrowClosed: "arrowclosed" },
+  Position: { Left: "left", Right: "right" },
   MiniMap: ({ position, style }: { position?: string; style?: React.CSSProperties }) => (
     <div aria-label="调用链缩略图" data-position={position} style={style} />
   ),
   ReactFlow: ({ nodes, edges, children }: {
-    nodes: Array<{ id: string; data: { label: React.ReactNode } }>;
-    edges: Array<{ id: string }>;
+    nodes: Array<{
+      id: string;
+      sourcePosition?: string;
+      targetPosition?: string;
+      data: { label: React.ReactNode };
+    }>;
+    edges: Array<{ id: string; label?: React.ReactNode }>;
     children: React.ReactNode;
   }) => (
     <div aria-label="测试 React Flow">
-      {nodes.map((node) => <div key={node.id} aria-label={`节点-${node.id}`}>{node.data.label}</div>)}
-      <output aria-label="边数量">{edges.length}</output>
+      {nodes.map((node) => (
+        <div
+          key={node.id}
+          aria-label={`节点-${node.id}`}
+          data-source-position={node.sourcePosition}
+          data-target-position={node.targetPosition}
+        >
+          {node.data.label}
+        </div>
+      ))}
+      <output aria-label="边数量" data-has-label={edges.some((edge) => edge.label != null)}>{edges.length}</output>
       {children}
     </div>
   ),
@@ -93,9 +108,28 @@ describe("CodeGraphCanvas", () => {
     expect(await screen.findByLabelText("节点-caller")).toBeInTheDocument();
     expect(screen.getByLabelText("节点-callee")).toBeInTheDocument();
     expect(screen.getByLabelText("边数量")).toHaveTextContent("2");
+    expect(screen.getByLabelText("边数量")).toHaveAttribute("data-has-label", "false");
     expect(screen.getByText("3 个符号 · 2 条关系")).toBeInTheDocument();
+    expect(screen.getByLabelText("节点-root")).toHaveAttribute("data-source-position", "right");
+    expect(screen.getByLabelText("节点-root")).toHaveAttribute("data-target-position", "left");
     expect(screen.getByLabelText("调用链缩略图")).toHaveAttribute("data-position", "top-left");
     expect(screen.getByLabelText("调用链缩略图")).toHaveStyle({ width: "120px", height: "80px" });
+
+    const rootActions = within(screen.getByLabelText("节点-root"));
+    expect(rootActions.getByRole("button", { name: "上游" })).toHaveAttribute("aria-pressed", "true");
+    expect(rootActions.getByRole("button", { name: "下游" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(rootActions.getByRole("button", { name: "下游" }));
+    await waitFor(() => expect(screen.queryByLabelText("节点-callee")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("边数量")).toHaveTextContent("1");
+    expect(within(screen.getByLabelText("节点-root")).getByRole("button", { name: "下游" }))
+      .toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(within(screen.getByLabelText("节点-root")).getByRole("button", { name: "下游" }));
+    expect(await screen.findByLabelText("节点-callee")).toBeInTheDocument();
+    expect(screen.getByLabelText("边数量")).toHaveTextContent("2");
+    expect(within(screen.getByLabelText("节点-root")).getByRole("button", { name: "下游" }))
+      .toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(within(screen.getByLabelText("节点-callee")).getByRole("button", { name: "下游" }));
     await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "callee", "callees", 50, 0));
@@ -131,6 +165,8 @@ describe("CodeGraphCanvas", () => {
     expect(await screen.findByLabelText("节点-method:login")).toBeInTheDocument();
     expect(screen.getByLabelText("边数量")).toHaveTextContent("1");
     expect(screen.getByText("2 个符号 · 1 条关系")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("节点-route:login")).getByRole("button", { name: "下游" }))
+      .toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(within(screen.getByLabelText("节点-method:login")).getByRole("button", { name: "下游" }));
     await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "method:login", "callees", 50, 0));

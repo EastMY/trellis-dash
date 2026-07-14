@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { CodeGraphRelation, CodeGraphRelationPage, CodeGraphSymbol } from "../types";
 import {
   codeGraphKindLabel,
+  codeGraphExpansionKey,
   deriveCodeGraph,
   layoutCodeGraph,
   MAX_CODEGRAPH_EDGES,
   MAX_CODEGRAPH_NODES,
   nearestDepth,
+  pruneCodeGraphExpansions,
 } from "./codeGraph";
 
 const symbol = (id: string, filePath: string): CodeGraphSymbol => ({
@@ -30,6 +32,7 @@ describe("代码图谱布局", () => {
     const positions = Object.fromEntries(result.map((item) => [item.symbol.id, item.x]));
     expect(positions.caller).toBeLessThan(positions.root);
     expect(positions.callee).toBeGreaterThan(positions.root);
+    expect(positions.callee - positions.root).toBe(288);
   });
 
   it("同层节点稳定排序，并优先保留离根更近的深度", () => {
@@ -64,8 +67,8 @@ describe("代码图谱布局", () => {
       hasMore: false,
     };
     const graph = deriveCodeGraph(root, [
-      { direction: "callees", depth: 0, page },
-      { direction: "callees", depth: 1, page: cycle },
+      { symbol: root, direction: "callees", depth: 0, page },
+      { symbol: callee, direction: "callees", depth: 1, page: cycle },
     ]);
     expect(graph.records).toHaveLength(2);
     expect(graph.relations).toHaveLength(2);
@@ -90,7 +93,7 @@ describe("代码图谱布局", () => {
       offset: 0,
       hasMore: true,
     };
-    const graph = deriveCodeGraph(root, [{ direction: "callees", depth: 0, page }]);
+    const graph = deriveCodeGraph(root, [{ symbol: root, direction: "callees", depth: 0, page }]);
     expect(graph.records.size).toBe(MAX_CODEGRAPH_NODES);
     expect(graph.relations.size).toBeLessThanOrEqual(MAX_CODEGRAPH_EDGES);
     expect(graph.nodeLimitReached).toBe(true);
@@ -105,11 +108,93 @@ describe("代码图谱布局", () => {
       target: repeatedTarget,
     }));
     const denseGraph = deriveCodeGraph(root, [{
-      direction: "callees",
+      symbol: root, direction: "callees",
       depth: 0,
       page: { ...page, items: denseItems, total: denseItems.length, limit: denseItems.length },
     }]);
     expect(denseGraph.relations.size).toBe(MAX_CODEGRAPH_EDGES);
     expect(denseGraph.edgeLimitReached).toBe(true);
+  });
+});
+
+describe("代码图谱分支折叠", () => {
+  const page = (
+    center: CodeGraphSymbol,
+    direction: "callers" | "callees",
+    adjacent: CodeGraphSymbol[],
+  ): CodeGraphRelationPage => ({
+    symbol: center,
+    direction,
+    items: adjacent.map((item, index) => ({
+      id: Number(`${center.startLine}${index + 1}`),
+      kind: "calls",
+      direction,
+      source: direction === "callers" ? item : center,
+      target: direction === "callers" ? center : item,
+    })),
+    total: adjacent.length,
+    limit: 20,
+    offset: 0,
+    hasMore: false,
+  });
+
+  it("折叠方向时移除该请求及其独占后代", () => {
+    const root = symbol("root", "root.go");
+    const child = symbol("child", "child.go");
+    const leaf = symbol("leaf", "leaf.go");
+    const expansions = [
+      { symbol: root, direction: "callers" as const, depth: 0 },
+      { symbol: root, direction: "callees" as const, depth: 0, page: page(root, "callees", [child]) },
+      { symbol: child, direction: "callees" as const, depth: 1, page: page(child, "callees", [leaf]) },
+      { symbol: leaf, direction: "callees" as const, depth: 2 },
+    ];
+
+    const result = pruneCodeGraphExpansions(root, expansions, codeGraphExpansionKey(expansions[2]));
+
+    expect(result.map(codeGraphExpansionKey)).toEqual(["root:callers", "root:callees"]);
+  });
+
+  it("共享节点仍可从其他路径到达时保留其已展开后代", () => {
+    const root = symbol("root", "root.go");
+    const left = symbol("left", "left.go");
+    const right = symbol("right", "right.go");
+    const bridge = symbol("bridge", "bridge.go");
+    const shared = symbol("shared", "shared.go");
+    const leaf = symbol("leaf", "leaf.go");
+    const expansions = [
+      { symbol: root, direction: "callees" as const, depth: 0, page: page(root, "callees", [left, right]) },
+      { symbol: left, direction: "callees" as const, depth: 1, page: page(left, "callees", [shared]) },
+      { symbol: right, direction: "callees" as const, depth: 1, page: page(right, "callees", [bridge]) },
+      { symbol: bridge, direction: "callees" as const, depth: 2, page: page(bridge, "callees", [shared]) },
+      { symbol: shared, direction: "callees" as const, depth: 2, page: page(shared, "callees", [leaf]) },
+      { symbol: leaf, direction: "callees" as const, depth: 3 },
+    ];
+
+    const result = pruneCodeGraphExpansions(root, expansions, codeGraphExpansionKey(expansions[1]));
+
+    expect(result.map(codeGraphExpansionKey)).toEqual([
+      "root:callees",
+      "right:callees",
+      "bridge:callees",
+      "shared:callees",
+      "leaf:callees",
+    ]);
+    expect(result.find((item) => item.symbol.id === "shared")?.depth).toBe(3);
+    expect(result.find((item) => item.symbol.id === "leaf")?.depth).toBe(4);
+  });
+
+  it("无查询页的根方向可折叠，调用环不会产生额外请求", () => {
+    const root = symbol("root", "root.go");
+    const child = symbol("child", "child.go");
+    const expansions = [
+      { symbol: root, direction: "callers" as const, depth: 0 },
+      { symbol: root, direction: "callees" as const, depth: 0, page: page(root, "callees", [child]) },
+      { symbol: child, direction: "callees" as const, depth: 1, page: page(child, "callees", [root]) },
+    ];
+
+    expect(pruneCodeGraphExpansions(root, expansions, "root:callers").map(codeGraphExpansionKey)).toEqual([
+      "root:callees",
+      "child:callees",
+    ]);
   });
 });

@@ -825,21 +825,23 @@ pre,
 .codegraph-node {
   padding: 0 !important;
   border: 1px solid var(--border-strong) !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
   background: var(--surface) !important;
-  box-shadow: 0 10px 28px rgba(3, 8, 5, .2) !important;
+  box-shadow: 0 7px 20px rgba(3, 8, 5, .16) !important;
   overflow: hidden;
 }
-.codegraph-node--root { border-color: var(--accent-border) !important; box-shadow: 0 0 0 2px var(--accent-soft), 0 12px 32px rgba(3, 8, 5, .25) !important; }
-.codegraph-node-content { display: grid; gap: 6px; padding: 11px 12px 0; text-align: left; }
-.codegraph-node-content > .ant-typography { min-width: 0; display: block; }
-.codegraph-node-path { font-size: 10px; }
-.codegraph-node-actions { display: grid; grid-template-columns: 1fr 1fr; margin: 2px -12px 0; border-top: 1px solid var(--border); }
-.codegraph-node-actions .ant-btn { border-radius: 0; }
-.codegraph-node-actions .ant-btn + .ant-btn { border-left: 1px solid var(--border); }
+.codegraph-node--root { border-color: var(--accent-border) !important; box-shadow: 0 0 0 2px var(--accent-soft), 0 8px 24px rgba(3, 8, 5, .2) !important; }
+.codegraph-node-content { display: grid; gap: 3px; padding: 7px 8px; text-align: left; }
+.codegraph-node-summary { min-width: 0; display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 5px; }
+.codegraph-node-summary .ant-tag { margin: 0; padding-inline: 5px; font-size: 10px; line-height: 19px; }
+.codegraph-node-language { min-width: 0; font-size: 10px; }
+.codegraph-node-name { min-width: 0; display: block; font-size: 12px; }
+.codegraph-node-detail { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px; }
+.codegraph-node-path { min-width: 0; display: block; font-size: 9px; }
+.codegraph-node-actions { display: flex; align-items: center; gap: 2px; }
+.codegraph-node-actions .ant-btn { min-width: 32px; height: 21px; padding-inline: 5px; border-radius: 4px; font-size: 10px; line-height: 19px; }
+.codegraph-node-actions .ant-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 .codegraph-edge .react-flow__edge-path { stroke: var(--accent-border); stroke-width: 1.5; }
-.codegraph-edge .react-flow__edge-text { fill: var(--text-secondary); font-size: 9px; }
-.codegraph-edge .react-flow__edge-textbg { fill: var(--surface-raised); }
 .codegraph-canvas .react-flow__controls,
 .codegraph-canvas .react-flow__minimap { border: 1px solid var(--border); background: var(--surface); box-shadow: none; }
 .codegraph-canvas .react-flow__controls-button { border-color: var(--border); color: var(--text); background: var(--surface); }
