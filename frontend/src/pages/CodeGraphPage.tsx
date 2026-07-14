@@ -8,7 +8,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Input, Segmented, Select, Space, Spin, Statistic, Tag, Tree, Typography } from "antd";
 import type { DataNode } from "antd/es/tree";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { CodeGraphCanvas } from "../components/CodeGraphCanvas";
 import { useProjectContext } from "../components/AppShell";
@@ -19,24 +19,35 @@ import type { CodeGraphStructureEntry, CodeGraphSymbol } from "../types";
 
 interface CodeGraphTreeNode extends DataNode {
   entry: CodeGraphStructureEntry;
+  compactEntries?: CodeGraphStructureEntry[];
   children?: CodeGraphTreeNode[];
 }
 
-function treeNode(entry: CodeGraphStructureEntry): CodeGraphTreeNode {
+interface TreeNodeOptions {
+  key?: React.Key;
+  compactEntries?: CodeGraphStructureEntry[];
+  children?: CodeGraphTreeNode[];
+}
+
+function treeNode(entry: CodeGraphStructureEntry, options: TreeNodeOptions = {}): CodeGraphTreeNode {
   const icon = entry.type === "directory"
     ? <FolderOpenOutlined />
     : entry.type === "file"
       ? <FileOutlined />
       : <CodeOutlined />;
   const count = entry.type === "directory" ? entry.fileCount : entry.nodeCount;
+  const compactEntries = options.compactEntries ?? [entry];
+  const compactName = compactEntries.map((item) => item.name).join(" / ");
   return {
-    key: entry.id,
+    key: options.key ?? entry.id,
     entry,
+    compactEntries,
+    children: options.children,
     icon,
     isLeaf: !entry.expandable,
     title: (
       <span className="codegraph-tree-title">
-        <span>{entry.name}</span>
+        <span title={compactName}>{compactName}</span>
         <span className="codegraph-tree-meta">
           {entry.language ? <Typography.Text type="secondary">{entry.language}</Typography.Text> : null}
           {Boolean(count) && <Typography.Text type="secondary">{count}</Typography.Text>}
@@ -46,14 +57,14 @@ function treeNode(entry: CodeGraphStructureEntry): CodeGraphTreeNode {
   };
 }
 
-function updateTreeChildren(
+function updateTreeNode(
   nodes: CodeGraphTreeNode[],
   key: React.Key,
-  children: CodeGraphTreeNode[],
+  replacement: CodeGraphTreeNode,
 ): CodeGraphTreeNode[] {
   return nodes.map((node) => {
-    if (node.key === key) return { ...node, children };
-    if (node.children) return { ...node, children: updateTreeChildren(node.children, key, children) };
+    if (node.key === key) return replacement;
+    if (node.children) return { ...node, children: updateTreeNode(node.children, key, replacement) };
     return node;
   });
 }
@@ -82,11 +93,24 @@ export function CodeGraphPage() {
   const [searchText, setSearchText] = useState("");
   const [symbolKind, setSymbolKind] = useState<string>();
   const [activePanel, setActivePanel] = useState<"structure" | "graph">("structure");
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
   const statusQuery = useQuery({
     queryKey: ["project", project.id, "codegraph", "status"],
     queryFn: () => api.getCodeGraphStatus(project.id),
   });
+
+  useLayoutEffect(() => {
+    if (statusQuery.data?.available !== true) return undefined;
+    // 桌面端由代码图谱工作区承接内容滚动，避免根页面出现重复的纵向滚动条。
+    document.documentElement.classList.add("codegraph-page-active");
+    document.body.classList.add("codegraph-page-active");
+    return () => {
+      document.documentElement.classList.remove("codegraph-page-active");
+      document.body.classList.remove("codegraph-page-active");
+    };
+  }, [statusQuery.data?.available]);
+
   const structureQuery = useQuery({
     queryKey: ["project", project.id, "codegraph", "structure", "", 0, 200],
     queryFn: () => api.getCodeGraphStructure(project.id, "", 200),
@@ -99,7 +123,7 @@ export function CodeGraphPage() {
   });
 
   useEffect(() => {
-    setTreeData((structureQuery.data?.items ?? []).map(treeNode));
+    setTreeData((structureQuery.data?.items ?? []).map((entry) => treeNode(entry)));
   }, [structureQuery.data]);
 
   useEffect(() => {
@@ -107,16 +131,39 @@ export function CodeGraphPage() {
     setSearchInput("");
     setSearchText("");
     setActivePanel("structure");
+    setExpandedKeys([]);
   }, [project.id, statusQuery.data?.revision]);
 
   const loadTreeNode = async (rawNode: DataNode): Promise<void> => {
     const node = rawNode as CodeGraphTreeNode;
     if (node.children || !node.entry.expandable) return;
-    const page = await queryClient.fetchQuery({
-      queryKey: ["project", project.id, "codegraph", "structure", node.entry.path, 0, 200],
-      queryFn: () => api.getCodeGraphStructure(project.id, node.entry.path, 200),
+    const compactEntries = [...(node.compactEntries ?? [node.entry])];
+    const visitedPaths = new Set(compactEntries.map((entry) => entry.path));
+    let deepestEntry = node.entry;
+    const fetchChildren = (path: string) => queryClient.fetchQuery({
+      queryKey: ["project", project.id, "codegraph", "structure", path, 0, 200],
+      queryFn: () => api.getCodeGraphStructure(project.id, path, 200),
     });
-    setTreeData((current) => updateTreeChildren(current, node.key, page.items.map(treeNode)));
+    let page = await fetchChildren(deepestEntry.path);
+
+    // 目录链只有一个子目录时继续向下读取，最终以一个紧凑节点承载整条路径。
+    while (deepestEntry.type === "directory" && page.total === 1 && page.items[0]?.type === "directory") {
+      const nextEntry = page.items[0];
+      if (visitedPaths.has(nextEntry.path)) {
+        throw new Error(`CodeGraph 目录结构存在循环路径：${nextEntry.path}`);
+      }
+      visitedPaths.add(nextEntry.path);
+      compactEntries.push(nextEntry);
+      deepestEntry = nextEntry;
+      page = await fetchChildren(deepestEntry.path);
+    }
+
+    const replacement = treeNode(deepestEntry, {
+      key: node.key,
+      compactEntries,
+      children: page.items.map((entry) => treeNode(entry)),
+    });
+    setTreeData((current) => updateTreeNode(current, node.key, replacement));
   };
 
   const selectSymbol = (symbol: CodeGraphSymbol) => {
@@ -248,11 +295,17 @@ export function CodeGraphPage() {
                   blockNode
                   loadData={loadTreeNode}
                   treeData={treeData}
+                  expandedKeys={expandedKeys}
                   selectedKeys={selectedSymbol ? [selectedSymbol.id] : []}
-                  onSelect={(keys) => {
-                    const key = keys[0];
-                    if (key === undefined) return;
+                  onExpand={(keys) => setExpandedKeys(keys)}
+                  onSelect={(_keys, info) => {
+                    const key = info.node.key;
                     const node = findTreeNode(treeData, key);
+                    if (node?.entry.expandable) {
+                      setExpandedKeys((current) => current.includes(key)
+                        ? current.filter((item) => item !== key)
+                        : [...current, key]);
+                    }
                     if (node?.entry.symbol) selectSymbol(node.entry.symbol);
                   }}
                 />

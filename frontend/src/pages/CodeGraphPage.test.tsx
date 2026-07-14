@@ -111,6 +111,125 @@ describe("CodeGraphPage", () => {
     expect(graphPanel).toHaveAttribute("hidden");
   });
 
+  it("索引可用时启用页面高度锁定，并在卸载后清理", async () => {
+    vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
+      available: true,
+      revision: "v1",
+      fileCount: 2,
+      nodeCount: 5,
+      edgeCount: 4,
+    });
+    const view = renderPage();
+
+    await screen.findByText("项目结构");
+    expect(document.documentElement).toHaveClass("codegraph-page-active");
+    expect(document.body).toHaveClass("codegraph-page-active");
+
+    view.unmount();
+    expect(document.documentElement).not.toHaveClass("codegraph-page-active");
+    expect(document.body).not.toHaveClass("codegraph-page-active");
+  });
+
+  it("点击目录名称时递归合并唯一子目录链，并复用已加载结果", async () => {
+    vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
+      available: true,
+      revision: "v1",
+      fileCount: 3,
+      nodeCount: 2,
+      edgeCount: 1,
+    });
+    vi.mocked(api.getCodeGraphStructure).mockImplementation(async (_projectId, path) => {
+      const pages = {
+        "": [{ id: "dir:java", type: "directory" as const, name: "java", path: "java", fileCount: 3, expandable: true }],
+        java: [{ id: "dir:java/com", type: "directory" as const, name: "com", path: "java/com", fileCount: 3, expandable: true }],
+        "java/com": [{ id: "dir:java/com/ruoyi", type: "directory" as const, name: "ruoyi", path: "java/com/ruoyi", fileCount: 3, expandable: true }],
+        "java/com/ruoyi": [
+          { id: "dir:java/com/ruoyi/web", type: "directory" as const, name: "web", path: "java/com/ruoyi/web", fileCount: 2, expandable: true },
+          { id: "file:java/com/ruoyi/App.java", type: "file" as const, name: "App.java", path: "java/com/ruoyi/App.java", language: "java", nodeCount: 1, expandable: true },
+        ],
+      };
+      const items = pages[path as keyof typeof pages] ?? [];
+      return { items, total: items.length, limit: 200, offset: 0, hasMore: false };
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByText("java"));
+
+    const compactName = await screen.findByText("java / com / ruoyi");
+    expect(screen.getByText("web")).toBeInTheDocument();
+    expect(screen.getByText("App.java")).toBeInTheDocument();
+    expect(vi.mocked(api.getCodeGraphStructure).mock.calls.map((call) => call[1])).toEqual([
+      "", "java", "java/com", "java/com/ruoyi",
+    ]);
+
+    fireEvent.click(compactName);
+    await waitFor(() => expect(screen.queryByText("web")).not.toBeInTheDocument());
+    fireEvent.click(compactName);
+    expect(await screen.findByText("web")).toBeInTheDocument();
+    expect(api.getCodeGraphStructure).toHaveBeenCalledTimes(4);
+  });
+
+  it("点击可展开文件名称后显示符号，并可选择符号进入调用链", async () => {
+    vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
+      available: true,
+      revision: "v1",
+      fileCount: 1,
+      nodeCount: 1,
+      edgeCount: 0,
+    });
+    vi.mocked(api.getCodeGraphStructure).mockImplementation(async (_projectId, path) => {
+      if (!path) {
+        return {
+          items: [{
+            id: "file:App.java",
+            type: "file",
+            name: "App.java",
+            path: "App.java",
+            language: "java",
+            nodeCount: 1,
+            expandable: true,
+          }],
+          total: 1,
+          limit: 200,
+          offset: 0,
+          hasMore: false,
+        };
+      }
+      return {
+        items: [{
+          id: "method:App.main",
+          type: "symbol",
+          name: "main",
+          path: "App.java",
+          language: "java",
+          expandable: false,
+          symbol: {
+            id: "method:App.main",
+            kind: "method",
+            name: "main",
+            qualifiedName: "App.main",
+            filePath: "App.java",
+            language: "java",
+            startLine: 8,
+            endLine: 10,
+            signature: "main(String[] args)",
+          },
+        }],
+        total: 1,
+        limit: 200,
+        offset: 0,
+        hasMore: false,
+      };
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByText("App.java"));
+    fireEvent.click(await screen.findByText("main"));
+
+    expect(screen.getByLabelText("测试调用链")).toHaveTextContent("App.main");
+    expect(vi.mocked(api.getCodeGraphStructure).mock.calls.map((call) => call[1])).toEqual(["", "App.java"]);
+  });
+
   it("搜索唯一符号后将其设为调用链中心，并显示签名", async () => {
     vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
       available: true,

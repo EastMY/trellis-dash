@@ -181,6 +181,33 @@ body {
   }
 }
 
+/* 代码图谱桌面端锁定应用壳高度，超长内容统一交给工作区内部滚动。 */
+@media (min-width: 901px) {
+  html.codegraph-page-active,
+  body.codegraph-page-active {
+    height: 100dvh;
+    overflow-y: hidden;
+  }
+  html.codegraph-page-active #root {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  html.codegraph-page-active .app-layout {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  html.codegraph-page-active .app-main {
+    height: 100%;
+    min-height: 0;
+  }
+  html.codegraph-page-active .app-content {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+}
+
 a { color: var(--link); }
 a:hover { color: var(--link-hover); }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -717,7 +744,13 @@ pre,
 .modal-intro { margin-bottom: 18px !important; }
 
 .codegraph-page { min-width: 0; }
-.codegraph-metrics { margin-bottom: 14px; }
+.codegraph-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+.codegraph-metrics .ant-statistic { padding: 8px 16px; }
+.codegraph-metrics .ant-statistic-title { margin-bottom: 2px; font-size: 10px; }
+.codegraph-metrics .ant-statistic-content { font-size: 20px; line-height: 1.2; }
 .codegraph-workspace {
   min-height: 650px;
   height: calc(100dvh - 300px);
@@ -757,9 +790,13 @@ pre,
 .codegraph-tree-panel > .ant-tree,
 .codegraph-result-list { flex: 1; padding: 8px; overflow: auto; }
 .codegraph-tree-panel > .ant-tree { background: transparent; }
-.codegraph-tree-title { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.codegraph-tree-title > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.codegraph-tree-meta { display: inline-flex; gap: 6px; font-size: 10px; }
+/* Ant Design 默认把图标和标题作为行内元素；改为可收缩的单行布局，避免文件名被整体挤到下一行。 */
+.codegraph-tree-panel .ant-tree-node-content-wrapper { min-width: 0; display: flex; align-items: center; white-space: nowrap; }
+.codegraph-tree-panel .ant-tree-iconEle { flex: 0 0 auto; }
+.codegraph-tree-panel .ant-tree-title { min-width: 0; flex: 1; }
+.codegraph-tree-title { min-width: 0; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.codegraph-tree-title > span:first-child { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.codegraph-tree-meta { flex: 0 0 auto; display: inline-flex; gap: 6px; font-size: 10px; }
 .codegraph-result-list { display: grid; align-content: start; gap: 3px; }
 .codegraph-result-list > .ant-spin { padding: 30px; }
 .codegraph-result {
@@ -812,6 +849,29 @@ pre,
 .codegraph-canvas-alert { position: absolute; top: 12px; left: 50%; z-index: 8; width: min(560px, calc(100% - 130px)); transform: translateX(-50%); }
 .codegraph-canvas-count { position: absolute; right: 12px; bottom: 12px; z-index: 5; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-secondary); background: var(--surface); font-size: 10px; }
 .codegraph-panel-switch { display: flex; margin-bottom: 10px; }
+
+@media (min-width: 901px) {
+  .codegraph-page {
+    height: 100%;
+    min-height: 0;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .codegraph-page > .page-header {
+    min-height: 0;
+    margin-bottom: 12px;
+  }
+  .codegraph-workspace {
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+  }
+  .codegraph-canvas,
+  .codegraph-canvas-empty { min-height: 0; }
+}
 
 .page-state,
 .standalone-state,
