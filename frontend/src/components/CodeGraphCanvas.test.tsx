@@ -93,10 +93,46 @@ describe("CodeGraphCanvas", () => {
     expect(await screen.findByLabelText("节点-caller")).toBeInTheDocument();
     expect(screen.getByLabelText("节点-callee")).toBeInTheDocument();
     expect(screen.getByLabelText("边数量")).toHaveTextContent("2");
+    expect(screen.getByText("3 个符号 · 2 条关系")).toBeInTheDocument();
     expect(screen.getByLabelText("调用链缩略图")).toHaveAttribute("data-position", "top-left");
     expect(screen.getByLabelText("调用链缩略图")).toHaveStyle({ width: "120px", height: "80px" });
 
     fireEvent.click(within(screen.getByLabelText("节点-callee")).getByRole("button", { name: "下游" }));
     await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "callee", "callees", 50, 0));
+  });
+
+  it("保留路由引用边，并可从处理方法继续展开调用链", async () => {
+    const route = { ...symbol("route:login"), kind: "route", name: "POST /login", language: "java" };
+    const handler = { ...symbol("method:login"), kind: "method", name: "login", language: "java" };
+    vi.mocked(api.getCodeGraphRelations).mockImplementation(async (_project, symbolID, direction) => {
+      const center = symbolID === route.id ? route : handler;
+      if (symbolID === route.id && direction === "callees") {
+        return {
+          symbol: route,
+          direction,
+          items: [{
+            id: 3,
+            kind: "references",
+            direction,
+            source: route,
+            target: handler,
+          }],
+          total: 1,
+          limit: 50,
+          offset: 0,
+          hasMore: false,
+        };
+      }
+      return { symbol: center, direction, items: [], total: 0, limit: 50, offset: 0, hasMore: false };
+    });
+
+    renderCanvas(route);
+
+    expect(await screen.findByLabelText("节点-method:login")).toBeInTheDocument();
+    expect(screen.getByLabelText("边数量")).toHaveTextContent("1");
+    expect(screen.getByText("2 个符号 · 1 条关系")).toBeInTheDocument();
+
+    fireEvent.click(within(screen.getByLabelText("节点-method:login")).getByRole("button", { name: "下游" }));
+    await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "method:login", "callees", 50, 0));
   });
 });

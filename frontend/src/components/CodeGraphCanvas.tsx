@@ -157,7 +157,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
   const budgetMessage = graph.nodeLimitReached
     ? `画布已达到 ${MAX_CODEGRAPH_NODES} 个符号上限，请重新选择中心符号缩小范围。`
     : graph.edgeLimitReached
-      ? `画布已达到 ${MAX_CODEGRAPH_EDGES} 条调用上限，请重新选择中心符号缩小范围。`
+      ? `画布已达到 ${MAX_CODEGRAPH_EDGES} 条关系上限，请重新选择中心符号缩小范围。`
       : graph.truncatedRelations[0]
         ? `“${graph.truncatedRelations[0].symbol.name}”的${graph.truncatedRelations[0].direction === "callers" ? "上游" : "下游"}关系较多，当前显示前 ${graph.truncatedRelations[0].visible} 条。`
         : undefined;
@@ -178,7 +178,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
           type="warning"
           showIcon
           icon={<WarningOutlined />}
-          message={queryError instanceof Error ? queryError.message : "调用关系加载失败"}
+          message={queryError instanceof Error ? queryError.message : "代码关系加载失败"}
           action={<Button size="small" onClick={() => relationQueries.forEach((query) => { if (query.isError) void query.refetch(); })}>重试</Button>}
         />
       )}
@@ -215,7 +215,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>
       <div className="codegraph-canvas-count" aria-live="polite">
-        {graph.records.size} 个符号 · {edges.length} 条调用
+        {graph.records.size} 个符号 · {edges.length} 条关系
       </div>
     </div>
   );

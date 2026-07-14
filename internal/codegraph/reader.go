@@ -45,6 +45,10 @@ var requiredColumns = map[string][]string{
 	"edges": {"id", "source", "target", "kind", "line", "provenance"},
 }
 
+// 路由是 CodeGraph 生成的入口元数据节点，通过 references 指向真实处理方法。
+// 只接纳来源为 route 的引用，避免把普通符号引用混入调用链。
+const relationEdgePredicate = `(e.kind = 'calls' OR (e.kind = 'references' AND source_node.kind = 'route'))`
+
 // Reader 按请求读取外部 CodeGraph 索引，不持有连接或可变缓存。
 type Reader struct{}
 
@@ -253,7 +257,11 @@ func (r *Reader) Relations(ctx context.Context, projectRoot, symbolID string, di
 		other = "target_node"
 	}
 	var total int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM edges e WHERE `+column+` = ? AND e.kind = 'calls'`, symbolID).Scan(&total); err != nil {
+	if err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM edges e
+		JOIN nodes source_node ON source_node.id = e.source
+		WHERE `+column+` = ? AND `+relationEdgePredicate, symbolID).Scan(&total); err != nil {
 		return RelationPage{}, classifyDatabaseError("统计 CodeGraph 调用关系", err)
 	}
 	rows, err := db.QueryContext(ctx, `
@@ -265,7 +273,7 @@ func (r *Reader) Relations(ctx context.Context, projectRoot, symbolID string, di
 		FROM edges e
 		JOIN nodes source_node ON source_node.id = e.source
 		JOIN nodes target_node ON target_node.id = e.target
-		WHERE `+column+` = ? AND e.kind = 'calls'
+		WHERE `+column+` = ? AND `+relationEdgePredicate+`
 		ORDER BY `+other+`.file_path, `+other+`.start_line, `+other+`.id, e.id
 		LIMIT ? OFFSET ?`, symbolID, limit, offset)
 	if err != nil {

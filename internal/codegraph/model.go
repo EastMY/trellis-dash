@@ -12,7 +12,7 @@ const (
 	MaxQueryLength        = 200
 )
 
-// Direction 表示调用关系相对当前符号的方向。
+// Direction 表示代码关系相对当前符号的方向。
 type Direction string
 
 const (
@@ -68,7 +68,7 @@ type StructureEntry struct {
 	Symbol     *Symbol `json:"symbol,omitempty"`
 }
 
-// Relation 保留 calls 边的方向和两端符号，避免前端追加 N+1 查询。
+// Relation 保留一跳关系的方向和两端符号，避免前端追加 N+1 查询。
 type Relation struct {
 	ID         int64  `json:"id"`
 	Kind       string `json:"kind"`
@@ -88,7 +88,7 @@ type Page[T any] struct {
 	HasMore bool `json:"hasMore"`
 }
 
-// RelationPage 返回中心符号及一个方向的一跳调用关系。
+// RelationPage 返回中心符号及一个方向的一跳代码关系。
 type RelationPage struct {
 	Symbol    Symbol     `json:"symbol"`
 	Direction Direction  `json:"direction"`

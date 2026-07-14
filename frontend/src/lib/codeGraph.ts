@@ -77,7 +77,7 @@ export function layoutCodeGraph(records: Iterable<CodeGraphNodeRecord>): CodeGra
   });
 }
 
-/** 调用边 ID 在数据库内稳定，附加端点可以防止多项目/多图之间发生碰撞。 */
+/** 关系边 ID 在数据库内稳定，附加端点可以防止多项目/多图之间发生碰撞。 */
 export function codeGraphEdgeKey(relation: CodeGraphRelation): string {
   return `${relation.id}:${relation.source.id}->${relation.target.id}`;
 }

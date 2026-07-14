@@ -20,7 +20,7 @@ func assertCodeGraphAPI(t *testing.T, harness *apiHarness, baseURL, projectID, i
 	response := requestJSON(t, harness.client, http.MethodGet, statusURL, nil, nil)
 	expectStatus(t, response, http.StatusOK)
 	status := decodeResponse[codegraph.Status](t, response)
-	if !status.Available || status.FileCount != 2 || status.NodeCount != 4 || status.EdgeCount != 2 {
+	if !status.Available || status.FileCount != 2 || status.NodeCount != 5 || status.EdgeCount != 3 {
 		t.Fatalf("CodeGraph 状态异常: %+v", status)
 	}
 	assertNotModified(t, harness.client, statusURL, response.header.Get("ETag"))
@@ -48,10 +48,21 @@ func assertCodeGraphAPI(t *testing.T, harness *apiHarness, baseURL, projectID, i
 	response = requestJSON(t, harness.client, http.MethodGet, relationsURL, nil, nil)
 	expectStatus(t, response, http.StatusOK)
 	relations := decodeResponse[codegraph.RelationPage](t, response)
-	if relations.Total != 1 || relations.Items[0].Source.ID != "function:caller" {
+	if relations.Total != 2 || relations.Items[0].Source.ID != "function:caller" || relations.Items[1].Source.ID != "route:login" {
 		t.Fatalf("CodeGraph 上游关系异常: %+v", relations)
 	}
 	assertNotModified(t, harness.client, relationsURL, response.header.Get("ETag"))
+
+	routeRelationsURL := fmt.Sprintf(
+		"%s/projects/%s/codegraph/symbols/%s/relations?direction=callees",
+		baseURL, projectID, "route%3Alogin",
+	)
+	response = requestJSON(t, harness.client, http.MethodGet, routeRelationsURL, nil, nil)
+	expectStatus(t, response, http.StatusOK)
+	routeRelations := decodeResponse[codegraph.RelationPage](t, response)
+	if routeRelations.Total != 1 || routeRelations.Items[0].Kind != "references" || routeRelations.Items[0].Target.ID != "function:root" {
+		t.Fatalf("CodeGraph 路由桥接关系异常: %+v", routeRelations)
+	}
 
 	invalid := requestJSON(t, harness.client, http.MethodGet,
 		fmt.Sprintf("%s/projects/%s/codegraph/search?q=handle&limit=oops", baseURL, projectID), nil, nil)
@@ -120,10 +131,12 @@ func createAPICodeGraphFixture(t *testing.T, projectRoot string) {
 			('function:root', 'function', 'handleRequest', 'handleRequest', 'internal/api/server.go', 'go', 10, 20, '(ctx context.Context) error'),
 			('function:caller', 'function', 'serveHTTP', 'Server::serveHTTP', 'internal/api/server.go', 'go', 1, 9, '()'),
 			('function:callee', 'function', 'writeJSON', 'writeJSON', 'internal/api/server.go', 'go', 22, 30, '()'),
+			('route:login', 'route', 'POST /login', 'server.go::route:/login', 'internal/api/server.go', 'go', 31, 31, ''),
 			('function:other', 'function', 'save', 'Store::save', 'internal/store/store.go', 'go', 50, 60, '()');
 		INSERT INTO edges(id, source, target, kind, line, provenance) VALUES
 			(1, 'function:caller', 'function:root', 'calls', 5, 'static'),
-			(2, 'function:root', 'function:callee', 'calls', 15, 'static');
+			(2, 'function:root', 'function:callee', 'calls', 15, 'static'),
+			(3, 'route:login', 'function:root', 'references', 31, 'static');
 	`); err != nil {
 		db.Close()
 		t.Fatal(err)

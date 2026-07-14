@@ -20,7 +20,7 @@ func TestReaderStatusAndStructure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !status.Available || status.FileCount != 3 || status.NodeCount != 6 || status.EdgeCount != 3 {
+	if !status.Available || status.FileCount != 3 || status.NodeCount != 7 || status.EdgeCount != 5 {
 		t.Fatalf("状态统计异常: %+v", status)
 	}
 	if len(status.Languages) != 2 || len(status.SchemaVersions) != 2 || status.IndexedAt == nil {
@@ -45,7 +45,7 @@ func TestReaderStatusAndStructure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if file.Total != 4 || file.Items[0].Type != "symbol" || file.Items[0].Symbol == nil {
+	if file.Total != 5 || file.Items[0].Type != "symbol" || file.Items[0].Symbol == nil {
 		t.Fatalf("文件符号结构异常: %+v", file)
 	}
 }
@@ -67,11 +67,14 @@ func TestReaderSearchAndRelationsUseExactSymbolID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if callers.Total != 2 || callers.Symbol.ID != "function:root" {
+	if callers.Total != 3 || callers.Symbol.ID != "function:root" {
 		t.Fatalf("上游调用关系异常: %+v", callers)
 	}
 	if callers.Items[0].Target.ID != "function:root" {
 		t.Fatalf("上游关系方向异常: %+v", callers.Items[0])
+	}
+	if callers.Items[2].Source.ID != "route:login" || callers.Items[2].Kind != "references" {
+		t.Fatalf("处理方法缺少路由上游引用: %+v", callers.Items)
 	}
 	callees, err := reader.Relations(ctx, root, "function:root", DirectionCallees, 20, 0)
 	if err != nil {
@@ -79,6 +82,20 @@ func TestReaderSearchAndRelationsUseExactSymbolID(t *testing.T) {
 	}
 	if callees.Total != 1 || callees.Items[0].Source.ID != "function:root" || callees.Items[0].Target.ID != "function:callee" {
 		t.Fatalf("下游调用关系异常: %+v", callees)
+	}
+	routeCallees, err := reader.Relations(ctx, root, "route:login", DirectionCallees, 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routeCallees.Total != 1 || routeCallees.Items[0].Kind != "references" || routeCallees.Items[0].Target.ID != "function:root" {
+		t.Fatalf("路由未桥接到处理方法: %+v", routeCallees)
+	}
+	classCallees, err := reader.Relations(ctx, root, "class:server", DirectionCallees, 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if classCallees.Total != 0 || len(classCallees.Items) != 0 {
+		t.Fatalf("普通 references 不应混入调用链: %+v", classCallees)
 	}
 	if _, err := reader.Relations(ctx, root, "handleRequest", DirectionCallers, 20, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("关系查询不应按重名名称回退: %v", err)
@@ -216,12 +233,15 @@ func createCodeGraphFixture(t *testing.T) string {
 			('function:caller', 'function', 'serveHTTP', 'Server::serveHTTP', 'internal/api/server.go', 'go', 1, 9, '()'),
 			('function:callee', 'function', 'writeJSON', 'writeJSON', 'internal/api/server.go', 'go', 22, 30, '()'),
 			('class:server', 'class', 'Server', 'Server', 'internal/api/server.go', 'go', 32, 40, ''),
+			('route:login', 'route', 'POST /login', 'server.go::route:/login', 'internal/api/server.go', 'go', 41, 41, ''),
 			('function:duplicate', 'function', 'handleRequest', 'Store::handleRequest', 'internal/store/store.go', 'go', 50, 60, '()'),
 			('component:app', 'component', 'DashboardApp', 'DashboardApp', 'frontend/src/main.tsx', 'typescript', 1, 20, '()');
 		INSERT INTO edges(id, source, target, kind, line, provenance) VALUES
 			(1, 'function:caller', 'function:root', 'calls', 5, 'static'),
 			(2, 'function:root', 'function:callee', 'calls', 15, 'static'),
-			(3, 'function:callee', 'function:root', 'calls', 25, 'static');
+			(3, 'function:callee', 'function:root', 'calls', 25, 'static'),
+			(4, 'route:login', 'function:root', 'references', 41, 'static'),
+			(5, 'class:server', 'function:root', 'references', 32, 'static');
 	`); err != nil {
 		db.Close()
 		t.Fatal(err)
