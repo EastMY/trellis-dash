@@ -4,6 +4,7 @@ export function selectedMenuKey(pathname: string): string {
   if (pathname.includes("/sessions")) return "sessions";
   if (pathname.includes("/git")) return "git";
   if (pathname.includes("/activity")) return "activity";
+  if (pathname.includes("/codegraph")) return "codegraph";
   if (pathname.includes("/settings")) return "settings";
   return "overview";
 }
@@ -20,6 +21,7 @@ export function projectSectionPath(pathname: string): string {
     sessions: "/sessions",
     git: "/git",
     activity: "/activity",
+    codegraph: "/codegraph",
     settings: "/settings",
   };
   return paths[section] ?? "";

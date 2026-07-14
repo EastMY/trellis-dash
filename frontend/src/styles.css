@@ -716,6 +716,102 @@ pre,
 .danger-zone .settings-heading > .anticon { color: var(--danger); font-size: 18px; }
 .modal-intro { margin-bottom: 18px !important; }
 
+.codegraph-page { min-width: 0; }
+.codegraph-metrics { margin-bottom: 14px; }
+.codegraph-workspace {
+  min-height: 650px;
+  height: calc(100dvh - 300px);
+  display: grid;
+  grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.codegraph-explorer {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.codegraph-searchbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 108px;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.codegraph-panel-heading {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.codegraph-tree-panel,
+.codegraph-search-results { min-height: 0; display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+.codegraph-tree-panel > .ant-tree,
+.codegraph-result-list { flex: 1; padding: 8px; overflow: auto; }
+.codegraph-tree-panel > .ant-tree { background: transparent; }
+.codegraph-tree-title { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.codegraph-tree-title > span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.codegraph-tree-meta { display: inline-flex; gap: 6px; font-size: 10px; }
+.codegraph-result-list { display: grid; align-content: start; gap: 3px; }
+.codegraph-result-list > .ant-spin { padding: 30px; }
+.codegraph-result {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.codegraph-result > span { color: var(--text-secondary); font-size: 11px; }
+.codegraph-result:hover,
+.codegraph-result-selected { background: var(--accent-soft); }
+.codegraph-result:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.codegraph-graph-panel { min-width: 0; min-height: 0; position: relative; }
+.codegraph-canvas,
+.codegraph-canvas-empty { width: 100%; height: 100%; min-height: 540px; position: relative; }
+.codegraph-canvas-empty { display: grid; place-items: center; padding: 30px; text-align: center; background: var(--surface-soft); }
+.codegraph-canvas .react-flow { background: var(--surface-soft); }
+.codegraph-canvas .react-flow__node { color: var(--text); }
+.codegraph-node {
+  padding: 0 !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 8px !important;
+  background: var(--surface) !important;
+  box-shadow: 0 10px 28px rgba(3, 8, 5, .2) !important;
+  overflow: hidden;
+}
+.codegraph-node--root { border-color: var(--accent-border) !important; box-shadow: 0 0 0 2px var(--accent-soft), 0 12px 32px rgba(3, 8, 5, .25) !important; }
+.codegraph-node-content { display: grid; gap: 6px; padding: 11px 12px 0; text-align: left; }
+.codegraph-node-content > .ant-typography { min-width: 0; display: block; }
+.codegraph-node-path { font-size: 10px; }
+.codegraph-node-actions { display: grid; grid-template-columns: 1fr 1fr; margin: 2px -12px 0; border-top: 1px solid var(--border); }
+.codegraph-node-actions .ant-btn { border-radius: 0; }
+.codegraph-node-actions .ant-btn + .ant-btn { border-left: 1px solid var(--border); }
+.codegraph-edge .react-flow__edge-path { stroke: var(--accent-border); stroke-width: 1.5; }
+.codegraph-edge .react-flow__edge-text { fill: var(--text-secondary); font-size: 9px; }
+.codegraph-edge .react-flow__edge-textbg { fill: var(--surface-raised); }
+.codegraph-canvas .react-flow__controls,
+.codegraph-canvas .react-flow__minimap { border: 1px solid var(--border); background: var(--surface); box-shadow: none; }
+.codegraph-canvas .react-flow__controls-button { border-color: var(--border); color: var(--text); background: var(--surface); }
+.codegraph-canvas .react-flow__controls-button:hover { background: var(--surface-raised); }
+.codegraph-canvas .react-flow__controls-button svg { fill: currentColor; }
+.codegraph-canvas .react-flow__minimap-mask { fill: var(--surface-soft); opacity: .76; }
+.codegraph-canvas-alert { position: absolute; top: 12px; left: 50%; z-index: 8; width: min(560px, calc(100% - 130px)); transform: translateX(-50%); }
+.codegraph-canvas-count { position: absolute; right: 12px; bottom: 12px; z-index: 5; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-secondary); background: var(--surface); font-size: 10px; }
+.codegraph-mobile-switch { display: none; margin-bottom: 10px; }
+
 .page-state,
 .standalone-state,
 .welcome-page { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
@@ -761,6 +857,10 @@ pre,
   .task-grid, .task-grid-overview { grid-template-columns: 1fr; }
   .detail-columns { grid-template-columns: 1fr; }
   .git-summary { grid-template-columns: 1fr; }
+  .codegraph-workspace { min-height: 610px; height: calc(100dvh - 330px); grid-template-columns: 1fr; }
+  .codegraph-explorer { border-right: 0; }
+  .codegraph-mobile-switch { display: flex; }
+  .codegraph-mobile-hidden { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -792,6 +892,8 @@ pre,
   .markdown-viewer { padding: 18px 15px 30px; }
   .welcome-panel { padding: 34px 24px; }
   .skeleton-metrics { grid-template-columns: repeat(2, 1fr); }
+  .codegraph-searchbar { grid-template-columns: 1fr; }
+  .codegraph-canvas-alert { width: calc(100% - 24px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

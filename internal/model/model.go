@@ -42,15 +42,17 @@ type Project struct {
 
 // RevisionBundle 是一个项目所有资源的单调递增版本集合。
 type RevisionBundle struct {
-	Generation string    `json:"generation"`
-	Day        string    `json:"day"`
-	Tasks      int64     `json:"tasks"`
-	Sessions   int64     `json:"sessions"`
-	Git        int64     `json:"git"`
-	Activity   int64     `json:"activity"`
-	Specs      int64     `json:"specs"`
-	Agents     int64     `json:"agents"`
-	Updated    time.Time `json:"updatedAt"`
+	Generation string `json:"generation"`
+	Day        string `json:"day"`
+	Tasks      int64  `json:"tasks"`
+	Sessions   int64  `json:"sessions"`
+	Git        int64  `json:"git"`
+	Activity   int64  `json:"activity"`
+	Specs      int64  `json:"specs"`
+	Agents     int64  `json:"agents"`
+	// CodeGraph 是外部只读索引的元数据指纹，不写入 Dashboard resource_revisions。
+	CodeGraph string    `json:"codegraph,omitempty"`
+	Updated   time.Time `json:"updatedAt"`
 }
 
 // Task 保留 Trellis task.json 的原始字段，同时补充 Dashboard 派生信息。

@@ -1,6 +1,12 @@
 import type {
   ActivityPage,
   Artifact,
+  CodeGraphDirection,
+  CodeGraphPage,
+  CodeGraphRelationPage,
+  CodeGraphStatus,
+  CodeGraphStructureEntry,
+  CodeGraphSymbol,
   DashboardSnapshot,
   GitCommit,
   GitSnapshot,
@@ -250,6 +256,51 @@ export const api = {
       }
       return value;
     });
+  },
+
+  getCodeGraphStatus(projectId: string): Promise<CodeGraphStatus> {
+    return request<CodeGraphStatus>(`/projects/${encodeURIComponent(projectId)}/codegraph/status`, {}, true);
+  },
+
+  getCodeGraphStructure(
+    projectId: string,
+    path = "",
+    limit = 100,
+    offset = 0,
+  ): Promise<CodeGraphPage<CodeGraphStructureEntry>> {
+    return request<CodeGraphPage<CodeGraphStructureEntry>>(
+      `/projects/${encodeURIComponent(projectId)}/codegraph/structure${query({ path, limit, offset })}`,
+      {},
+      true,
+    );
+  },
+
+  searchCodeGraphSymbols(
+    projectId: string,
+    q: string,
+    kind?: string,
+    limit = 30,
+    offset = 0,
+  ): Promise<CodeGraphPage<CodeGraphSymbol>> {
+    return request<CodeGraphPage<CodeGraphSymbol>>(
+      `/projects/${encodeURIComponent(projectId)}/codegraph/search${query({ q, kind, limit, offset })}`,
+      {},
+      true,
+    );
+  },
+
+  getCodeGraphRelations(
+    projectId: string,
+    symbolId: string,
+    direction: CodeGraphDirection,
+    limit = 20,
+    offset = 0,
+  ): Promise<CodeGraphRelationPage> {
+    return request<CodeGraphRelationPage>(
+      `/projects/${encodeURIComponent(projectId)}/codegraph/symbols/${encodeURIComponent(symbolId)}/relations${query({ direction, limit, offset })}`,
+      {},
+      true,
+    );
   },
 
   async getTasks(

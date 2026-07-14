@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/yunnnn/trellis-dash/internal/app"
+	"github.com/yunnnn/trellis-dash/internal/codegraph"
 	"github.com/yunnnn/trellis-dash/internal/gitstate"
 	"github.com/yunnnn/trellis-dash/internal/store"
 	"github.com/yunnnn/trellis-dash/internal/webui"
@@ -18,6 +19,7 @@ type Server struct {
 	store      *store.Store
 	supervisor *app.Supervisor
 	git        *gitstate.Inspector
+	codegraph  *codegraph.Reader
 	logger     *slog.Logger
 	picker     directoryPicker
 	projectsMu sync.Mutex
@@ -27,7 +29,7 @@ type Server struct {
 func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstate.Inspector, logger *slog.Logger) http.Handler {
 	s := &Server{
 		store: repository, supervisor: supervisor, git: git, logger: logger,
-		picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(),
+		codegraph: codegraph.NewReader(), picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(),
 	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -56,6 +58,10 @@ func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstat
 		r.Post("/projects/{projectID}/rescan", s.rescanProject)
 		r.Get("/projects/{projectID}/revision", s.getRevision)
 		r.Get("/projects/{projectID}/dashboard", s.getDashboard)
+		r.Get("/projects/{projectID}/codegraph/status", s.getCodeGraphStatus)
+		r.Get("/projects/{projectID}/codegraph/structure", s.getCodeGraphStructure)
+		r.Get("/projects/{projectID}/codegraph/search", s.searchCodeGraphSymbols)
+		r.Get("/projects/{projectID}/codegraph/symbols/{symbolID}/relations", s.getCodeGraphRelations)
 		r.Get("/projects/{projectID}/workflow-states", s.listWorkflowStates)
 		r.Get("/projects/{projectID}/sessions", s.listSessions)
 		r.Get("/projects/{projectID}/activity", s.listActivity)

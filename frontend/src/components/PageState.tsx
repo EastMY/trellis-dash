@@ -58,9 +58,9 @@ export function EmptyState({ title, description, action, kind = "data" }: EmptyS
     <Empty
       className="page-empty"
       image={icon}
-      imageStyle={kind === "data" ? undefined : { height: 42, fontSize: 40 }}
+      styles={kind === "data" ? undefined : { image: { height: 42, fontSize: 40 } }}
       description={
-        <Space direction="vertical" size={4}>
+        <Space orientation="vertical" size={4}>
           <Typography.Text strong>{title}</Typography.Text>
           {description && <Typography.Text type="secondary">{description}</Typography.Text>}
         </Space>

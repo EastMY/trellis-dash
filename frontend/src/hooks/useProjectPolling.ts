@@ -6,8 +6,8 @@ import { usePageVisibility } from "./usePageVisibility";
 
 const revisionResources: Array<keyof Pick<
   RevisionBundle,
-  "tasks" | "sessions" | "git" | "activity" | "specs" | "agents"
->> = ["tasks", "sessions", "git", "activity", "specs", "agents"];
+  "tasks" | "sessions" | "git" | "activity" | "specs" | "agents" | "codegraph"
+>> = ["tasks", "sessions", "git", "activity", "specs", "agents", "codegraph"];
 
 /**
  * 浏览器只轮询轻量 revision。资源版本变化后再定向失效 Query，

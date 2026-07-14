@@ -14,7 +14,82 @@ export interface RevisionBundle {
   activity: number;
   specs: number;
   agents: number;
+  codegraph?: string;
   updatedAt: string;
+}
+
+export type CodeGraphDirection = "callers" | "callees";
+
+export interface CodeGraphLanguageStat {
+  name: string;
+  fileCount: number;
+}
+
+export interface CodeGraphStatus {
+  available: boolean;
+  reason?: "not_initialized" | "incompatible_schema" | "busy" | "unreadable" | string;
+  message?: string;
+  revision: string;
+  indexedAt?: string;
+  fileCount?: number;
+  nodeCount?: number;
+  edgeCount?: number;
+  databaseBytes?: number;
+  languages?: CodeGraphLanguageStat[];
+  schemaVersions?: number[];
+}
+
+export interface CodeGraphSymbol {
+  id: string;
+  kind: string;
+  name: string;
+  qualifiedName: string;
+  filePath: string;
+  language: string;
+  startLine: number;
+  endLine: number;
+  signature?: string;
+}
+
+export interface CodeGraphStructureEntry {
+  id: string;
+  type: "directory" | "file" | "symbol";
+  name: string;
+  path: string;
+  language?: string;
+  fileCount?: number;
+  nodeCount?: number;
+  size?: number;
+  expandable: boolean;
+  symbol?: CodeGraphSymbol;
+}
+
+export interface CodeGraphPage<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface CodeGraphRelation {
+  id: number;
+  kind: string;
+  direction: CodeGraphDirection;
+  line?: number;
+  provenance?: string;
+  source: CodeGraphSymbol;
+  target: CodeGraphSymbol;
+}
+
+export interface CodeGraphRelationPage {
+  symbol: CodeGraphSymbol;
+  direction: CodeGraphDirection;
+  items: CodeGraphRelation[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 export interface Project {

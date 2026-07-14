@@ -122,6 +122,7 @@ func TestServerEndToEnd(t *testing.T) {
 	assertSessionsAPI(t, harness, baseURL, project.ID)
 	assertActivityAPI(t, harness, baseURL, project.ID)
 	assertGitAPI(t, harness, baseURL, project.ID)
+	assertCodeGraphAPI(t, harness, baseURL, project.ID, initialRevision.Resources.CodeGraph)
 
 	// 修改事实源后显式 rescan，验证 API 没有把 SQLite 当成不可重建的事实源。
 	writeActiveTask(t, harness.taskFile, "review", "API 监控进入检查")
@@ -422,6 +423,7 @@ func assertNotModified(t *testing.T, client *http.Client, url, etag string) {
 func newAPIHarness(t *testing.T) *apiHarness {
 	t.Helper()
 	projectDir, taskFile := createTrellisGitFixture(t)
+	createAPICodeGraphFixture(t, projectDir)
 	repository, err := store.Open(filepath.Join(t.TempDir(), "dashboard.db"))
 	if err != nil {
 		t.Fatalf("打开 SQLite: %v", err)

@@ -9,6 +9,7 @@ describe("projectSectionPath", () => {
     ["/projects/yuni/sessions", "/sessions"],
     ["/projects/yuni/git", "/git"],
     ["/projects/yuni/activity", "/activity"],
+    ["/projects/yuni/codegraph", "/codegraph"],
     ["/projects/yuni/settings", "/settings"],
   ])("保留一级功能页：%s", (pathname, expected) => {
     expect(projectSectionPath(pathname)).toBe(expected);

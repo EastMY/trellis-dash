@@ -95,6 +95,29 @@ describe("API 客户端", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("/projects/demo/git/push");
   });
 
+  it("CodeGraph 关系接口编码符号 ID 并保留分页方向", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      expect(url).toContain("/projects/demo/codegraph/symbols/method%3AService%2Frun/relations");
+      expect(url).toContain("direction=callers");
+      expect(url).toContain("limit=50");
+      expect(url).toContain("offset=10");
+      return Promise.resolve(new Response(JSON.stringify({
+        symbol: { id: "method:Service/run" },
+        direction: "callers",
+        items: [],
+        total: 0,
+        limit: 50,
+        offset: 10,
+        hasMore: false,
+      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.getCodeGraphRelations("demo", "method:Service/run", "callers", 50, 10))
+      .resolves.toMatchObject({ direction: "callers", offset: 10 });
+  });
+
   it("删除项目后清空旧 generation 的 ETag 缓存", async () => {
     const dashboard = { project: { id: "demo" }, statistics: {}, activeTasks: [], sessions: [], recentActivity: [] };
     const fetchMock = vi.fn()

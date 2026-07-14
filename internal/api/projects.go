@@ -37,6 +37,9 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, err)
 		return
 	}
+	for index := range projects {
+		s.enrichProjectCodeGraph(&projects[index])
+	}
 	if setCacheValidator(w, r, payloadETag("projects", projects)) {
 		return
 	}
@@ -73,6 +76,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 	if existing, err := s.store.GetProjectByRoot(r.Context(), root); err == nil {
 		// 持久化项目启动时可能因目录暂时不可用而没有 runner；路径恢复后再次添加即可自愈。
 		s.supervisor.Ensure(existing)
+		s.enrichProjectCodeGraph(&existing)
 		writeJSON(w, http.StatusOK, existing)
 		return
 	} else if err != store.ErrNotFound {
@@ -92,6 +96,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 	}
 	project, _ = s.store.GetProject(r.Context(), project.ID)
 	s.supervisor.Register(project)
+	s.enrichProjectCodeGraph(&project)
 	writeJSON(w, http.StatusCreated, project)
 }
 
@@ -101,6 +106,7 @@ func (s *Server) getProject(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, err)
 		return
 	}
+	s.enrichProjectCodeGraph(&project)
 	if setCacheValidator(w, r, payloadETag("project", project)) {
 		return
 	}
@@ -133,16 +139,23 @@ func (s *Server) rescanProject(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, err)
 		return
 	}
+	s.enrichProjectCodeGraph(&project)
 	writeJSON(w, http.StatusOK, project)
 }
 
 func (s *Server) getRevision(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
+	project, err := s.store.GetProject(r.Context(), projectID)
+	if err != nil {
+		writeStoreError(w, err)
+		return
+	}
 	revisions, err := s.store.GetRevisions(r.Context(), projectID)
 	if err != nil {
 		writeStoreError(w, err)
 		return
 	}
+	revisions.CodeGraph = s.codegraph.Fingerprint(project.Root)
 	response := map[string]any{
 		"projectId": projectID,
 		"resources": revisions,
@@ -161,6 +174,7 @@ func (s *Server) getDashboard(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, err)
 		return
 	}
+	s.enrichProjectCodeGraph(&dashboard.Project)
 	if len(dashboard.CompletionTrend) > 0 {
 		startDate := dashboard.CompletionTrend[0].Date
 		endDate := dashboard.CompletionTrend[len(dashboard.CompletionTrend)-1].Date
@@ -187,6 +201,10 @@ func (s *Server) getDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, dashboard)
+}
+
+func (s *Server) enrichProjectCodeGraph(project *model.Project) {
+	project.Revisions.CodeGraph = s.codegraph.Fingerprint(project.Root)
 }
 
 var projectSlugPattern = regexp.MustCompile(`[^a-z0-9]+`)

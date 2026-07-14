@@ -7,6 +7,7 @@ import {
   FolderAddOutlined,
   MenuOutlined,
   OrderedListOutlined,
+  ShareAltOutlined,
   ReloadOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
@@ -96,6 +97,7 @@ export function AppShell() {
       { key: "sessions", icon: <ApartmentOutlined />, label: "Sessions" },
       { key: "git", icon: <BranchesOutlined />, label: "Git / Worktree" },
       { key: "activity", icon: <HistoryOutlined />, label: "活动记录" },
+      { key: "codegraph", icon: <ShareAltOutlined />, label: "代码图谱" },
       { type: "divider" as const },
       { key: "settings", icon: <SettingOutlined />, label: "项目设置" },
     ],
@@ -111,6 +113,7 @@ export function AppShell() {
       sessions: "/sessions",
       git: "/git",
       activity: "/activity",
+      codegraph: "/codegraph",
       settings: "/settings",
     };
     navigate(`/projects/${projectId}${path[key] ?? ""}`);
