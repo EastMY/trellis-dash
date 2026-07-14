@@ -12,7 +12,9 @@ vi.mock("@xyflow/react", async () => ({
   BackgroundVariant: { Dots: "dots" },
   Controls: () => <div aria-label="调用链缩放控制" />,
   MarkerType: { ArrowClosed: "arrowclosed" },
-  MiniMap: () => <div aria-label="调用链缩略图" />,
+  MiniMap: ({ position, style }: { position?: string; style?: React.CSSProperties }) => (
+    <div aria-label="调用链缩略图" data-position={position} style={style} />
+  ),
   ReactFlow: ({ nodes, edges, children }: {
     nodes: Array<{ id: string; data: { label: React.ReactNode } }>;
     edges: Array<{ id: string }>;
@@ -91,6 +93,8 @@ describe("CodeGraphCanvas", () => {
     expect(await screen.findByLabelText("节点-caller")).toBeInTheDocument();
     expect(screen.getByLabelText("节点-callee")).toBeInTheDocument();
     expect(screen.getByLabelText("边数量")).toHaveTextContent("2");
+    expect(screen.getByLabelText("调用链缩略图")).toHaveAttribute("data-position", "top-left");
+    expect(screen.getByLabelText("调用链缩略图")).toHaveStyle({ width: "120px", height: "80px" });
 
     fireEvent.click(within(screen.getByLabelText("节点-callee")).getByRole("button", { name: "下游" }));
     await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "callee", "callees", 50, 0));

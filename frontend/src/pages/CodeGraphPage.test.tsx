@@ -87,6 +87,30 @@ describe("CodeGraphPage", () => {
     expect(api.getCodeGraphStatus).toHaveBeenCalledTimes(2);
   });
 
+  it("所有屏幕尺寸均可在结构与调用链之间切换", async () => {
+    vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
+      available: true,
+      revision: "v1",
+      fileCount: 2,
+      nodeCount: 5,
+      edgeCount: 4,
+    });
+    renderPage();
+
+    const structurePanel = (await screen.findByText("项目结构")).closest("aside");
+    const graphPanel = screen.getByLabelText("测试调用链").closest("section");
+    expect(structurePanel).not.toHaveAttribute("hidden");
+    expect(graphPanel).toHaveAttribute("hidden");
+
+    fireEvent.click(screen.getByText("调用链"));
+    expect(structurePanel).toHaveAttribute("hidden");
+    expect(graphPanel).not.toHaveAttribute("hidden");
+
+    fireEvent.click(screen.getByText("结构与搜索"));
+    expect(structurePanel).not.toHaveAttribute("hidden");
+    expect(graphPanel).toHaveAttribute("hidden");
+  });
+
   it("搜索唯一符号后将其设为调用链中心，并显示签名", async () => {
     vi.mocked(api.getCodeGraphStatus).mockResolvedValue({
       available: true,

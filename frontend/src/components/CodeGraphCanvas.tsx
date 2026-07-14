@@ -203,7 +203,14 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
         deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
       >
-        <MiniMap pannable zoomable aria-label="调用链缩略图" />
+        {/* React Flow 会根据 style 尺寸计算缩略图 viewBox，不能只缩放 CSS 外壳。 */}
+        <MiniMap
+          style={{ width: 120, height: 80 }}
+          position="top-left"
+          pannable
+          zoomable
+          aria-label="调用链缩略图"
+        />
         <Controls showInteractive={false} aria-label="调用链缩放控制" />
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       </ReactFlow>

@@ -81,7 +81,7 @@ export function CodeGraphPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchText, setSearchText] = useState("");
   const [symbolKind, setSymbolKind] = useState<string>();
-  const [mobilePanel, setMobilePanel] = useState<"structure" | "graph">("structure");
+  const [activePanel, setActivePanel] = useState<"structure" | "graph">("structure");
 
   const statusQuery = useQuery({
     queryKey: ["project", project.id, "codegraph", "status"],
@@ -106,7 +106,7 @@ export function CodeGraphPage() {
     setSelectedSymbol(undefined);
     setSearchInput("");
     setSearchText("");
-    setMobilePanel("structure");
+    setActivePanel("structure");
   }, [project.id, statusQuery.data?.revision]);
 
   const loadTreeNode = async (rawNode: DataNode): Promise<void> => {
@@ -121,7 +121,7 @@ export function CodeGraphPage() {
 
   const selectSymbol = (symbol: CodeGraphSymbol) => {
     setSelectedSymbol(symbol);
-    setMobilePanel("graph");
+    setActivePanel("graph");
   };
 
   const languageTags = useMemo(() => statusQuery.data?.languages?.slice(0, 6) ?? [], [statusQuery.data]);
@@ -166,15 +166,16 @@ export function CodeGraphPage() {
       </div>
 
       <Segmented
-        className="codegraph-mobile-switch"
+        className="codegraph-panel-switch"
         block
-        value={mobilePanel}
+        value={activePanel}
         options={[{ label: "结构与搜索", value: "structure" }, { label: "调用链", value: "graph" }]}
-        onChange={(value) => setMobilePanel(value as "structure" | "graph")}
+        onChange={(value) => setActivePanel(value as "structure" | "graph")}
       />
 
+      {/* 两个面板保持挂载，切换时继续保留结构展开和画布浏览状态。 */}
       <div className="codegraph-workspace">
-        <aside className={`codegraph-explorer${mobilePanel === "graph" ? " codegraph-mobile-hidden" : ""}`}>
+        <aside className="codegraph-explorer" hidden={activePanel !== "structure"}>
           <div className="codegraph-searchbar">
             <Input.Search
               allowClear
@@ -260,7 +261,7 @@ export function CodeGraphPage() {
           )}
         </aside>
 
-        <section className={`codegraph-graph-panel${mobilePanel === "structure" ? " codegraph-mobile-hidden" : ""}`}>
+        <section className="codegraph-graph-panel" hidden={activePanel !== "graph"}>
           <CodeGraphCanvas projectId={project.id} rootSymbol={selectedSymbol} />
         </section>
       </div>

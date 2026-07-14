@@ -722,7 +722,7 @@ pre,
   min-height: 650px;
   height: calc(100dvh - 300px);
   display: grid;
-  grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -732,10 +732,11 @@ pre,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
 }
+.codegraph-explorer[hidden],
+.codegraph-graph-panel[hidden] { display: none; }
 .codegraph-searchbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 108px;
@@ -810,7 +811,7 @@ pre,
 .codegraph-canvas .react-flow__minimap-mask { fill: var(--surface-soft); opacity: .76; }
 .codegraph-canvas-alert { position: absolute; top: 12px; left: 50%; z-index: 8; width: min(560px, calc(100% - 130px)); transform: translateX(-50%); }
 .codegraph-canvas-count { position: absolute; right: 12px; bottom: 12px; z-index: 5; padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-secondary); background: var(--surface); font-size: 10px; }
-.codegraph-mobile-switch { display: none; margin-bottom: 10px; }
+.codegraph-panel-switch { display: flex; margin-bottom: 10px; }
 
 .page-state,
 .standalone-state,
@@ -857,10 +858,7 @@ pre,
   .task-grid, .task-grid-overview { grid-template-columns: 1fr; }
   .detail-columns { grid-template-columns: 1fr; }
   .git-summary { grid-template-columns: 1fr; }
-  .codegraph-workspace { min-height: 610px; height: calc(100dvh - 330px); grid-template-columns: 1fr; }
-  .codegraph-explorer { border-right: 0; }
-  .codegraph-mobile-switch { display: flex; }
-  .codegraph-mobile-hidden { display: none; }
+  .codegraph-workspace { min-height: 610px; height: calc(100dvh - 330px); }
 }
 
 @media (max-width: 760px) {
