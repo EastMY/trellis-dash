@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26.x"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
+      - name: Test Go
+        run: go test -race ./...
+
+      - name: Vet Go
+        run: go vet ./...
+
+      - name: Test frontend
+        run: pnpm --dir frontend test -- --run
+
+      - name: Build frontend
+        run: pnpm --dir frontend build
+
+      - name: Build embedded binary
+        run: |
+          rm -rf internal/webui/dist
+          cp -R frontend/dist internal/webui/dist
+          go build -trimpath ./cmd/trellis-dashboard

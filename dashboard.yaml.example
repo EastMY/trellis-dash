@@ -1,0 +1,23 @@
+server:
+  host: 127.0.0.1
+  port: 7465
+
+database:
+  path: ~/.local/share/trellis-dashboard/dashboard.db
+
+# Git 与 macOS/BSD 元数据轮询共用同一项目级刷新节拍。
+refresh_interval: 10s
+
+projects:
+  - id: sample-project
+    name: 示例 Trellis 项目
+    root: /absolute/path/to/project
+    mode: observer
+
+watcher:
+  debounce: 250ms
+  full_rescan_interval: 10m
+
+git:
+  max_diff_bytes: 2097152
+  command_timeout: 5s

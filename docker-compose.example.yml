@@ -1,0 +1,23 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "127.0.0.1:7465:7465"
+    environment:
+      # “今日完成”与 revision day 按进程时区计算，请改为部署所在地。
+      TZ: Asia/Shanghai
+    volumes:
+      - dashboard-data:/data
+      # Observer 模式只需要只读挂载项目。
+      - /absolute/path/to/trellis-project:/workspace/project:ro
+    command:
+      - --host
+      - 0.0.0.0
+      - --database
+      - /data/dashboard.db
+      - --project
+      - /workspace/project
+    restart: unless-stopped
+
+volumes:
+  dashboard-data:
