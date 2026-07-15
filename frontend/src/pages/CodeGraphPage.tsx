@@ -1,21 +1,24 @@
 import {
   CodeOutlined,
+  DownOutlined,
   FileOutlined,
   FolderOpenOutlined,
   SearchOutlined,
   ShareAltOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Segmented, Select, Space, Spin, Statistic, Tag, Tree, Typography } from "antd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { App, Button, Dropdown, Input, Segmented, Select, Space, Spin, Statistic, Tag, Tooltip, Tree, Typography } from "antd";
 import type { DataNode } from "antd/es/tree";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { CodeGraphCanvas } from "../components/CodeGraphCanvas";
 import { useProjectContext } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/PageState";
 import { codeGraphKindLabel } from "../lib/codeGraph";
-import type { CodeGraphStructureEntry, CodeGraphSymbol } from "../types";
+import { minuteDate } from "../lib/format";
+import type { CodeGraphStatus, CodeGraphStructureEntry, CodeGraphSymbol, CodeGraphSyncMode } from "../types";
 
 interface CodeGraphTreeNode extends DataNode {
   entry: CodeGraphStructureEntry;
@@ -86,6 +89,7 @@ function formatBytes(value = 0): string {
 
 export function CodeGraphPage() {
   const { project } = useProjectContext();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [treeData, setTreeData] = useState<CodeGraphTreeNode[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<CodeGraphSymbol>();
@@ -94,14 +98,60 @@ export function CodeGraphPage() {
   const [symbolKind, setSymbolKind] = useState<string>();
   const [activePanel, setActivePanel] = useState<"structure" | "graph">("structure");
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  const [syncMenuOpen, setSyncMenuOpen] = useState(false);
+  const handledOperationRef = useRef("");
+  const lastAvailableStatusRef = useRef<{ projectId: string; status: CodeGraphStatus } | undefined>(undefined);
+  const resetRevisionRef = useRef("");
+
+  const statusQueryKey = ["project", project.id, "codegraph", "status"] as const;
 
   const statusQuery = useQuery({
-    queryKey: ["project", project.id, "codegraph", "status"],
+    queryKey: statusQueryKey,
     queryFn: () => api.getCodeGraphStatus(project.id),
+    refetchInterval: (query) => query.state.data?.operation?.state === "running" ? 1_000 : false,
+  });
+  const rawStatus = statusQuery.data;
+  const operation = rawStatus?.operation;
+  const operationRunning = operation?.state === "running";
+  if (rawStatus?.available) {
+    lastAvailableStatusRef.current = { projectId: project.id, status: rawStatus };
+  }
+  // 写索引时 Reader 可能短暂 busy；运行期继续展示本次操作开始前的可用快照。
+  const status = !rawStatus?.available
+    && operationRunning
+    && lastAvailableStatusRef.current?.projectId === project.id
+    ? { ...lastAvailableStatusRef.current.status, cliAvailable: rawStatus?.cliAvailable ?? false, operation }
+    : rawStatus;
+
+  const syncMutation = useMutation({
+    mutationFn: (mode: CodeGraphSyncMode) => api.syncCodeGraph(project.id, mode),
+    onSuccess: (operation) => {
+      queryClient.setQueryData<CodeGraphStatus>(statusQueryKey, (current) => (
+        current ? { ...current, operation } : current
+      ));
+      message.info(operation.mode === "rebuild" ? "已开始完整重建 CodeGraph 索引" : "已开始同步 CodeGraph 索引");
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : "启动 CodeGraph 操作失败");
+    },
   });
 
+  useEffect(() => {
+    const operation = statusQuery.data?.operation;
+    if (!operation || operation.state === "running") return;
+    const operationKey = `${operation.startedAt}:${operation.state}`;
+    if (handledOperationRef.current === operationKey) return;
+    handledOperationRef.current = operationKey;
+    if (operation.state === "succeeded") {
+      message.success(operation.mode === "rebuild" ? "CodeGraph 索引完整重建完成" : "CodeGraph 索引同步完成");
+      void queryClient.invalidateQueries({ queryKey: ["project", project.id, "codegraph"] });
+      return;
+    }
+    message.error(operation.message || "CodeGraph 操作失败，已保留原索引内容");
+  }, [message, project.id, queryClient, statusQuery.data?.operation]);
+
   useLayoutEffect(() => {
-    if (statusQuery.data?.available !== true) return undefined;
+    if (status?.available !== true) return undefined;
     // 桌面端由代码图谱工作区承接内容滚动，避免根页面出现重复的纵向滚动条。
     document.documentElement.classList.add("codegraph-page-active");
     document.body.classList.add("codegraph-page-active");
@@ -109,17 +159,17 @@ export function CodeGraphPage() {
       document.documentElement.classList.remove("codegraph-page-active");
       document.body.classList.remove("codegraph-page-active");
     };
-  }, [statusQuery.data?.available]);
+  }, [status?.available]);
 
   const structureQuery = useQuery({
     queryKey: ["project", project.id, "codegraph", "structure", "", 0, 200],
     queryFn: () => api.getCodeGraphStructure(project.id, "", 200),
-    enabled: statusQuery.data?.available === true,
+    enabled: status?.available === true && !operationRunning,
   });
   const searchQuery = useQuery({
     queryKey: ["project", project.id, "codegraph", "search", searchText, symbolKind ?? "", 0, 30],
     queryFn: () => api.searchCodeGraphSymbols(project.id, searchText, symbolKind),
-    enabled: statusQuery.data?.available === true && searchText.length > 0,
+    enabled: status?.available === true && !operationRunning && searchText.length > 0,
   });
 
   useEffect(() => {
@@ -127,12 +177,16 @@ export function CodeGraphPage() {
   }, [structureQuery.data]);
 
   useEffect(() => {
+    if (operationRunning) return;
+    const resetRevision = `${project.id}:${status?.revision ?? ""}`;
+    if (resetRevisionRef.current === resetRevision) return;
+    resetRevisionRef.current = resetRevision;
     setSelectedSymbol(undefined);
     setSearchInput("");
     setSearchText("");
     setActivePanel("structure");
     setExpandedKeys([]);
-  }, [project.id, statusQuery.data?.revision]);
+  }, [operationRunning, project.id, status?.revision]);
 
   const loadTreeNode = async (rawNode: DataNode): Promise<void> => {
     const node = rawNode as CodeGraphTreeNode;
@@ -171,16 +225,96 @@ export function CodeGraphPage() {
     setActivePanel("graph");
   };
 
-  const languageTags = useMemo(() => statusQuery.data?.languages?.slice(0, 6) ?? [], [statusQuery.data]);
+  const languageTags = useMemo(() => status?.languages?.slice(0, 6) ?? [], [status?.languages]);
 
   if (statusQuery.isLoading) return <PageSkeleton rows={8} />;
   if (statusQuery.isError) return <ErrorState error={statusQuery.error} onRetry={() => void statusQuery.refetch()} />;
 
-  const status = statusQuery.data;
+  const unavailableReason = !status?.available
+    ? "请先在项目目录初始化 CodeGraph"
+    : !status.cliAvailable
+      ? "未检测到 CodeGraph CLI"
+      : operationRunning
+        ? operation.mode === "rebuild" ? "正在完整重建 CodeGraph 索引" : "正在同步 CodeGraph 索引"
+        : undefined;
+  const operationDisabled = Boolean(unavailableReason) || syncMutation.isPending;
+  const startOperation = (mode: CodeGraphSyncMode) => {
+    setSyncMenuOpen(false);
+    if (!operationDisabled) syncMutation.mutate(mode);
+  };
+  const confirmRebuild = () => {
+    setSyncMenuOpen(false);
+    modal.confirm({
+      title: "完整重建 CodeGraph 索引",
+      content: "完整重建会强制重新索引整个项目，项目较大时可能耗时较长。确认继续吗？",
+      okText: "开始完整重建",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: () => startOperation("rebuild"),
+    });
+  };
+  const headerMeta = (
+    <Space size={6} wrap>
+      <Tag icon={<ShareAltOutlined />} color="green">CodeGraph 索引</Tag>
+      {languageTags.map((language) => (
+        <Tag key={language.name}>{language.name} · {language.fileCount}</Tag>
+      ))}
+    </Space>
+  );
+  const headerActions = (
+    <Space className="codegraph-index-actions" size={10} wrap>
+      <Typography.Text type="secondary">{minuteDate(status?.indexedAt)}</Typography.Text>
+      {unavailableReason && !operationRunning ? (
+        <Typography.Text type="danger">{unavailableReason}</Typography.Text>
+      ) : null}
+      <Tooltip title={unavailableReason}>
+        <span>
+          <Dropdown
+            open={syncMenuOpen}
+            onOpenChange={setSyncMenuOpen}
+            disabled={operationDisabled}
+            trigger={["hover"]}
+            menu={{
+              items: [{ key: "rebuild", label: "完整重建" }],
+              onClick: ({ key }) => {
+                if (key === "rebuild") confirmRebuild();
+              },
+            }}
+          >
+            <Space.Compact>
+              <Button
+                type="primary"
+                icon={<SyncOutlined spin={operationRunning} />}
+                disabled={operationDisabled}
+                loading={syncMutation.isPending}
+                onClick={() => startOperation("sync")}
+              >
+                {operationRunning ? (operation?.mode === "rebuild" ? "正在完整重建" : "正在同步") : "同步"}
+              </Button>
+              <Button
+                type="primary"
+                aria-label="更多 CodeGraph 同步操作"
+                aria-haspopup="menu"
+                aria-expanded={syncMenuOpen}
+                icon={<DownOutlined />}
+                disabled={operationDisabled}
+                onClick={() => setSyncMenuOpen((open) => !open)}
+              />
+            </Space.Compact>
+          </Dropdown>
+        </span>
+      </Tooltip>
+    </Space>
+  );
   if (!status?.available) {
     return (
       <div className="page codegraph-page">
-        <PageHeader title="代码图谱" description="读取项目现有 .codegraph 索引，检索代码结构与调用关系" />
+        <PageHeader
+          title="代码图谱"
+          description="数据来源：CodeGraph。读取项目索引并检索代码结构与调用关系"
+          meta={headerMeta}
+          actions={headerActions}
+        />
         <EmptyState
           title="当前项目暂无可用 CodeGraph"
           description={status?.message || "请先在项目目录生成 CodeGraph 索引，再回到面板刷新。"}
@@ -194,15 +328,9 @@ export function CodeGraphPage() {
     <div className="page codegraph-page">
       <PageHeader
         title="代码图谱"
-        description="按项目浏览代码结构，并从任意符号向上游、下游展开调用链"
-        meta={(
-          <Space size={6} wrap>
-            <Tag icon={<ShareAltOutlined />} color="green">只读索引</Tag>
-            {languageTags.map((language) => (
-              <Tag key={language.name}>{language.name} · {language.fileCount}</Tag>
-            ))}
-          </Space>
-        )}
+        description="数据来源：CodeGraph。按项目浏览代码结构，并从任意符号向上游、下游展开调用链"
+        meta={headerMeta}
+        actions={headerActions}
       />
 
       <div className="codegraph-metrics metric-strip">
@@ -315,7 +443,7 @@ export function CodeGraphPage() {
         </aside>
 
         <section className="codegraph-graph-panel" hidden={activePanel !== "graph"}>
-          <CodeGraphCanvas projectId={project.id} rootSymbol={selectedSymbol} />
+          <CodeGraphCanvas projectId={project.id} rootSymbol={selectedSymbol} paused={operationRunning} />
         </section>
       </div>
     </div>

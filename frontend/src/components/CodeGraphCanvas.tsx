@@ -32,9 +32,10 @@ import "@xyflow/react/dist/style.css";
 interface CodeGraphCanvasProps {
   projectId: string;
   rootSymbol?: CodeGraphSymbol;
+  paused?: boolean;
 }
 
-export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps) {
+export function CodeGraphCanvas({ projectId, rootSymbol, paused = false }: CodeGraphCanvasProps) {
   const [expansions, setExpansions] = useState<CodeGraphExpansionRequest[]>([]);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>([]);
 
@@ -50,6 +51,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
     queries: expansions.map((request) => ({
       queryKey: ["project", projectId, "codegraph", "relations", request.symbol.id, request.direction, 0, 50],
       queryFn: () => api.getCodeGraphRelations(projectId, request.symbol.id, request.direction, 50, 0),
+      enabled: !paused,
     })),
   });
 
@@ -128,7 +130,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
                   aria-label="上游"
                   aria-pressed={callersExpanded}
                   title={callersExpanded ? "收起上游" : "展开上游"}
-                  disabled={!callersExpanded && limitReached}
+                  disabled={!callersExpanded && (limitReached || paused)}
                   icon={loadingKeys.has(callerKey) ? <LoadingOutlined /> : undefined}
                   onClick={() => toggleSymbol(record.symbol, record.depth, "callers")}
                 >
@@ -140,7 +142,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
                   aria-label="下游"
                   aria-pressed={calleesExpanded}
                   title={calleesExpanded ? "收起下游" : "展开下游"}
-                  disabled={!calleesExpanded && limitReached}
+                  disabled={!calleesExpanded && (limitReached || paused)}
                   icon={loadingKeys.has(calleeKey) ? <LoadingOutlined /> : undefined}
                   onClick={() => toggleSymbol(record.symbol, record.depth, "callees")}
                 >
@@ -153,7 +155,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol }: CodeGraphCanvasProps)
       },
       style: { width: CODEGRAPH_NODE_WIDTH },
     };
-  }), [expandedKeys, graph.records, limitReached, loadingKeys, rootSymbol?.id, toggleSymbol]);
+  }), [expandedKeys, graph.records, limitReached, loadingKeys, paused, rootSymbol?.id, toggleSymbol]);
 
   useEffect(() => {
     // 追加关系时保留用户已拖动坐标，只给新节点应用稳定分层布局。

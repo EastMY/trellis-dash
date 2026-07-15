@@ -118,6 +118,25 @@ describe("API 客户端", () => {
       .resolves.toMatchObject({ direction: "callers", offset: 10 });
   });
 
+  it("CodeGraph 同步接口只提交固定 mode 并使用 POST", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toContain("/projects/demo%20project/codegraph/sync");
+      expect(init?.method).toBe("POST");
+      expect(JSON.parse(String(init?.body))).toEqual({ mode: "rebuild" });
+      return Promise.resolve(new Response(JSON.stringify({
+        mode: "rebuild",
+        state: "running",
+        startedAt: "2026-07-15T08:45:00Z",
+      }), { status: 202, headers: { "Content-Type": "application/json" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.syncCodeGraph("demo project", "rebuild")).resolves.toMatchObject({
+      mode: "rebuild",
+      state: "running",
+    });
+  });
+
   it("删除项目后清空旧 generation 的 ETag 缓存", async () => {
     const dashboard = { project: { id: "demo" }, statistics: {}, activeTasks: [], sessions: [], recentActivity: [] };
     const fetchMock = vi.fn()

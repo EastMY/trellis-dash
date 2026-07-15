@@ -21,10 +21,50 @@ func (s *Server) getCodeGraphStatus(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		status = unavailableCodeGraphStatus(status.Revision, err)
 	}
+	status.CLIAvailable = s.codegraphSync.CLIAvailable()
+	status.Operation = s.codegraphSync.Operation(project.ID, project.Root)
 	if setCacheValidator(w, r, payloadETag("codegraph-status", status)) {
 		return
 	}
 	writeJSON(w, http.StatusOK, status)
+}
+
+type codeGraphSyncInput struct {
+	Mode codegraph.SyncMode `json:"mode"`
+}
+
+func (s *Server) syncCodeGraph(w http.ResponseWriter, r *http.Request) {
+	project, err := s.store.GetProject(r.Context(), chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeStoreError(w, err)
+		return
+	}
+	var input codeGraphSyncInput
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if input.Mode != codegraph.SyncModeIncremental && input.Mode != codegraph.SyncModeRebuild {
+		writeAPIError(w, http.StatusUnprocessableEntity, "invalid_codegraph_sync", "mode 必须为 sync 或 rebuild")
+		return
+	}
+	// 未初始化或不可读时不得启动写操作，旧索引状态继续由 Reader 统一判定。
+	if _, err := s.codegraph.Status(r.Context(), project.Root); err != nil {
+		writeCodeGraphError(w, err, "codegraph_entry_not_found")
+		return
+	}
+	operation, err := s.codegraphSync.Start(project.ID, project.Root, input.Mode)
+	if err != nil {
+		switch {
+		case errors.Is(err, codegraph.ErrCLIUnavailable):
+			writeAPIError(w, http.StatusServiceUnavailable, "codegraph_cli_unavailable", "未检测到 CodeGraph CLI")
+		case errors.Is(err, codegraph.ErrSyncConflict):
+			writeAPIError(w, http.StatusConflict, "codegraph_sync_conflict", "当前项目已有 CodeGraph 操作正在执行")
+		default:
+			writeAPIError(w, http.StatusUnprocessableEntity, "invalid_codegraph_sync", err.Error())
+		}
+		return
+	}
+	writeJSON(w, http.StatusAccepted, operation)
 }
 
 func (s *Server) getCodeGraphStructure(w http.ResponseWriter, r *http.Request) {

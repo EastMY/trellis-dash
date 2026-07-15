@@ -35,6 +35,12 @@ export function fullDate(value?: string): string {
   return date.isValid() ? date.format("YYYY-MM-DD HH:mm:ss") : value;
 }
 
+export function minuteDate(value?: string): string {
+  if (!value) return "更新时间未知";
+  const date = dayjs(value);
+  return date.isValid() ? `更新于 ${date.format("YYYY-MM-DD HH:mm")}` : "更新时间未知";
+}
+
 export function shortHash(value?: string): string {
   return value ? value.slice(0, 8) : "-";
 }

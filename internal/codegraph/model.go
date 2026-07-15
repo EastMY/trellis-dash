@@ -26,7 +26,33 @@ type LanguageStat struct {
 	FileCount int    `json:"fileCount"`
 }
 
-// Status 描述一个项目 CodeGraph 索引的只读可用状态。
+// SyncMode 是 Dashboard 允许触发的固定 CodeGraph 操作，不接受任意 CLI 参数。
+type SyncMode string
+
+const (
+	SyncModeIncremental SyncMode = "sync"
+	SyncModeRebuild     SyncMode = "rebuild"
+)
+
+// OperationState 描述后台 CodeGraph 操作的生命周期。
+type OperationState string
+
+const (
+	OperationRunning   OperationState = "running"
+	OperationSucceeded OperationState = "succeeded"
+	OperationFailed    OperationState = "failed"
+)
+
+// Operation 是单个项目当前或最近一次 CodeGraph 后台操作。
+type Operation struct {
+	Mode       SyncMode       `json:"mode"`
+	State      OperationState `json:"state"`
+	StartedAt  time.Time      `json:"startedAt"`
+	FinishedAt *time.Time     `json:"finishedAt,omitempty"`
+	Message    string         `json:"message,omitempty"`
+}
+
+// Status 描述一个项目 CodeGraph 索引及其受控同步能力。
 type Status struct {
 	Available      bool           `json:"available"`
 	Reason         string         `json:"reason,omitempty"`
@@ -39,6 +65,8 @@ type Status struct {
 	DatabaseBytes  int64          `json:"databaseBytes,omitempty"`
 	Languages      []LanguageStat `json:"languages,omitempty"`
 	SchemaVersions []int          `json:"schemaVersions,omitempty"`
+	CLIAvailable   bool           `json:"cliAvailable"`
+	Operation      *Operation     `json:"operation,omitempty"`
 }
 
 // Symbol 是对外稳定的符号投影，不暴露 CodeGraph 的内部表结构。

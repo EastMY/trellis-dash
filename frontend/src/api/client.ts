@@ -3,8 +3,10 @@ import type {
   Artifact,
   CodeGraphDirection,
   CodeGraphPage,
+  CodeGraphOperation,
   CodeGraphRelationPage,
   CodeGraphStatus,
+  CodeGraphSyncMode,
   CodeGraphStructureEntry,
   CodeGraphSymbol,
   DashboardSnapshot,
@@ -260,6 +262,16 @@ export const api = {
 
   getCodeGraphStatus(projectId: string): Promise<CodeGraphStatus> {
     return request<CodeGraphStatus>(`/projects/${encodeURIComponent(projectId)}/codegraph/status`, {}, true);
+  },
+
+  async syncCodeGraph(projectId: string, mode: CodeGraphSyncMode): Promise<CodeGraphOperation> {
+    const operation = await request<CodeGraphOperation>(
+      `/projects/${encodeURIComponent(projectId)}/codegraph/sync`,
+      { method: "POST", body: JSON.stringify({ mode }) },
+    );
+    // POST 已改变 status 表示，避免下一次短轮询继续复用操作前的 304 缓存。
+    deleteCachedResponse(`GET /projects/${encodeURIComponent(projectId)}/codegraph/status`);
+    return operation;
   },
 
   getCodeGraphStructure(

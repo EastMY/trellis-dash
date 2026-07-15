@@ -16,20 +16,28 @@ import (
 )
 
 type Server struct {
-	store      *store.Store
-	supervisor *app.Supervisor
-	git        *gitstate.Inspector
-	codegraph  *codegraph.Reader
-	logger     *slog.Logger
-	picker     directoryPicker
-	projectsMu sync.Mutex
-	gitCache   *gitResultCache
+	store         *store.Store
+	supervisor    *app.Supervisor
+	git           *gitstate.Inspector
+	codegraph     *codegraph.Reader
+	codegraphSync codeGraphSyncController
+	logger        *slog.Logger
+	picker        directoryPicker
+	projectsMu    sync.Mutex
+	gitCache      *gitResultCache
+}
+
+type codeGraphSyncController interface {
+	CLIAvailable() bool
+	Operation(projectID, projectRoot string) *codegraph.Operation
+	Start(projectID, projectRoot string, mode codegraph.SyncMode) (codegraph.Operation, error)
 }
 
 func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstate.Inspector, logger *slog.Logger) http.Handler {
 	s := &Server{
 		store: repository, supervisor: supervisor, git: git, logger: logger,
-		codegraph: codegraph.NewReader(), picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(),
+		codegraph: codegraph.NewReader(), codegraphSync: codegraph.NewSyncManager(logger),
+		picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(),
 	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -59,6 +67,7 @@ func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstat
 		r.Get("/projects/{projectID}/revision", s.getRevision)
 		r.Get("/projects/{projectID}/dashboard", s.getDashboard)
 		r.Get("/projects/{projectID}/codegraph/status", s.getCodeGraphStatus)
+		r.Post("/projects/{projectID}/codegraph/sync", s.syncCodeGraph)
 		r.Get("/projects/{projectID}/codegraph/structure", s.getCodeGraphStructure)
 		r.Get("/projects/{projectID}/codegraph/search", s.searchCodeGraphSymbols)
 		r.Get("/projects/{projectID}/codegraph/symbols/{symbolID}/relations", s.getCodeGraphRelations)

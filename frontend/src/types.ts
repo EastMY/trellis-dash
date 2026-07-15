@@ -25,6 +25,17 @@ export interface CodeGraphLanguageStat {
   fileCount: number;
 }
 
+export type CodeGraphSyncMode = "sync" | "rebuild";
+export type CodeGraphOperationState = "running" | "succeeded" | "failed";
+
+export interface CodeGraphOperation {
+  mode: CodeGraphSyncMode;
+  state: CodeGraphOperationState;
+  startedAt: string;
+  finishedAt?: string;
+  message?: string;
+}
+
 export interface CodeGraphStatus {
   available: boolean;
   reason?: "not_initialized" | "incompatible_schema" | "busy" | "unreadable" | string;
@@ -37,6 +48,8 @@ export interface CodeGraphStatus {
   databaseBytes?: number;
   languages?: CodeGraphLanguageStat[];
   schemaVersions?: number[];
+  cliAvailable: boolean;
+  operation?: CodeGraphOperation;
 }
 
 export interface CodeGraphSymbol {
