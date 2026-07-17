@@ -23,7 +23,7 @@ import {
   Typography,
 } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { WheelEvent } from "react";
+import type { DragEvent, KeyboardEvent, WheelEvent } from "react";
 import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { useProjectPolling } from "../hooks/useProjectPolling";
@@ -59,20 +59,56 @@ export function projectListPollingOptions(visible: boolean): {
   };
 }
 
+export function orderProjects(projects: Project[], projectOrder: string[]): Project[] {
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+  const ordered = projectOrder.flatMap((projectId) => {
+    const project = projectsById.get(projectId);
+    if (!project) return [];
+    projectsById.delete(projectId);
+    return [project];
+  });
+
+  // 新增项目或旧偏好缺失的项目继续沿用服务端顺序，避免被意外隐藏。
+  return [...ordered, ...projects.filter((project) => projectsById.has(project.id))];
+}
+
+export function moveProject(
+  projects: Project[],
+  sourceProjectId: string,
+  targetProjectId: string,
+): string[] {
+  const projectOrder = projects.map((project) => project.id);
+  const sourceIndex = projectOrder.indexOf(sourceProjectId);
+  const targetIndex = projectOrder.indexOf(targetProjectId);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return projectOrder;
+
+  projectOrder.splice(sourceIndex, 1);
+  projectOrder.splice(targetIndex, 0, sourceProjectId);
+  return projectOrder;
+}
+
 export function AppShell() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [draggedProjectId, setDraggedProjectId] = useState<string>();
+  const [dropTargetProjectId, setDropTargetProjectId] = useState<string>();
   const activeProjectTagRef = useRef<HTMLButtonElement>(null);
-  const { setCurrentProjectId } = useAppStore();
+  const projectOrder = useAppStore((state) => state.projectOrder);
+  const setCurrentProjectId = useAppStore((state) => state.setCurrentProjectId);
+  const setProjectOrder = useAppStore((state) => state.setProjectOrder);
   const polling = useProjectPolling(projectId);
   const projectsQuery = useQuery({
     queryKey: ["projects"],
     queryFn: api.listProjects,
     ...projectListPollingOptions(polling.visible),
   });
+  const orderedProjects = useMemo(
+    () => orderProjects(projectsQuery.data ?? [], projectOrder),
+    [projectOrder, projectsQuery.data],
+  );
   const project = projectsQuery.data?.find((item) => item.id === projectId);
   const dashboardQuery = useQuery({
     queryKey: ["project", projectId, "dashboard"],
@@ -127,6 +163,43 @@ export function AppShell() {
       search: location.search,
       hash: location.hash,
     });
+  };
+
+  const startProjectDrag = (event: DragEvent<HTMLButtonElement>, sourceProjectId: string) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", sourceProjectId);
+    setDraggedProjectId(sourceProjectId);
+  };
+
+  const dragOverProject = (event: DragEvent<HTMLButtonElement>, targetProjectId: string) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetProjectId(draggedProjectId === targetProjectId ? undefined : targetProjectId);
+  };
+
+  const dropProject = (event: DragEvent<HTMLButtonElement>, targetProjectId: string) => {
+    event.preventDefault();
+    const sourceProjectId = event.dataTransfer.getData("text/plain") || draggedProjectId;
+    if (sourceProjectId && sourceProjectId !== targetProjectId) {
+      setProjectOrder(moveProject(orderedProjects, sourceProjectId, targetProjectId));
+    }
+    setDraggedProjectId(undefined);
+    setDropTargetProjectId(undefined);
+  };
+
+  const moveProjectWithKeyboard = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    sourceProjectId: string,
+  ) => {
+    if (!event.altKey || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+
+    const sourceIndex = orderedProjects.findIndex((item) => item.id === sourceProjectId);
+    const targetIndex = sourceIndex + (event.key === "ArrowLeft" ? -1 : 1);
+    const targetProject = orderedProjects[targetIndex];
+    if (!targetProject) return;
+
+    event.preventDefault();
+    setProjectOrder(moveProject(orderedProjects, sourceProjectId, targetProject.id));
   };
 
   const scrollProjectTags = (event: WheelEvent<HTMLDivElement>) => {
@@ -209,21 +282,31 @@ export function AppShell() {
             <div
               className="project-tag-scroll"
               role="group"
-              aria-label="切换项目"
+              aria-label="切换并排序项目"
               onWheel={scrollProjectTags}
             >
-              {projectsQuery.data?.map((item) => {
+              {orderedProjects.map((item) => {
                 const active = item.id === projectId;
                 return (
                   <button
                     key={item.id}
                     ref={active ? activeProjectTagRef : undefined}
                     type="button"
-                    className={`project-tag${active ? " project-tag-active" : ""}`}
+                    className={`project-tag${active ? " project-tag-active" : ""}${draggedProjectId === item.id ? " project-tag-dragging" : ""}${dropTargetProjectId === item.id ? " project-tag-drop-target" : ""}`}
+                    draggable
                     aria-pressed={active}
+                    aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
                     aria-label={`${item.name}，${item.activeTaskCount} 个活跃任务`}
-                    title={`${item.name} · ${item.activeTaskCount} 个活跃任务`}
+                    title={`${item.name} · ${item.activeTaskCount} 个活跃任务 · 拖动排序，或按 Alt + 左右方向键调整`}
                     onClick={() => switchProject(item.id)}
+                    onDragStart={(event) => startProjectDrag(event, item.id)}
+                    onDragOver={(event) => dragOverProject(event, item.id)}
+                    onDrop={(event) => dropProject(event, item.id)}
+                    onDragEnd={() => {
+                      setDraggedProjectId(undefined);
+                      setDropTargetProjectId(undefined);
+                    }}
+                    onKeyDown={(event) => moveProjectWithKeyboard(event, item.id)}
                   >
                     <span className="project-tag-label">{item.name}</span>
                     <span className="project-tag-count" aria-hidden="true">{item.activeTaskCount}</span>

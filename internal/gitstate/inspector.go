@@ -118,23 +118,9 @@ func (i *Inspector) Snapshot(ctx context.Context, projectID, root string) (model
 	if err := parseStatus(statusOutput, &snapshot); err != nil {
 		return snapshotWithError(snapshot, fmt.Errorf("解析 Git 状态失败: %w", err))
 	}
-	if snapshot.Head != "" {
-		// 直接相对 HEAD 计算工作树，合并暂存与未暂存后的净变化不会重复计数。
-		numStatOutput, err := i.runLimited(
-			ctx,
-			cleanRoot,
-			"读取 Git 行数统计",
-			MaxNumStatBytes,
-			ErrGitOutputTooLarge,
-			"diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "HEAD", "--",
-		)
-		if err != nil {
-			return snapshotWithError(snapshot, err)
-		}
-		snapshot.LinesAdded, snapshot.LinesDeleted, err = parseNumStat(numStatOutput)
-		if err != nil {
-			return snapshotWithError(snapshot, fmt.Errorf("解析 Git 行数统计失败: %w", err))
-		}
+	snapshot.LinesAdded, snapshot.LinesDeleted, err = i.lineStats(ctx, cleanRoot, snapshot.Head, snapshot.Files)
+	if err != nil {
+		return snapshotWithError(snapshot, err)
 	}
 
 	worktreeOutput, err := i.runLimited(
@@ -162,6 +148,89 @@ func (i *Inspector) Snapshot(ctx context.Context, projectID, root string) (model
 	sortSnapshot(&snapshot)
 	snapshot.Hash = snapshotHash(snapshot)
 	return snapshot, nil
+}
+
+// lineStats 汇总已跟踪变化和未跟踪文件相对空文件的文本行变化。
+func (i *Inspector) lineStats(
+	ctx context.Context,
+	root, head string,
+	files []model.GitFile,
+) (int, int, error) {
+	var outputs []byte
+	if head != "" {
+		// 直接相对 HEAD 计算工作树，合并暂存与未暂存后的净变化不会重复计数。
+		trackedOutput, err := i.runLimited(
+			ctx,
+			root,
+			"读取 Git 行数统计",
+			MaxNumStatBytes,
+			ErrGitOutputTooLarge,
+			"diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "HEAD", "--",
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+		outputs = append(outputs, trackedOutput...)
+	}
+
+	untrackedPathspec := make([]byte, 0)
+	for _, file := range files {
+		if !file.Untracked {
+			continue
+		}
+		untrackedPathspec = append(untrackedPathspec, file.Path...)
+		untrackedPathspec = append(untrackedPathspec, 0)
+	}
+	if len(untrackedPathspec) > 0 {
+		untrackedOutput, err := i.untrackedNumStat(ctx, root, untrackedPathspec)
+		if err != nil {
+			return 0, 0, err
+		}
+		outputs = append(outputs, untrackedOutput...)
+	}
+
+	added, deleted, err := parseNumStat(outputs)
+	if err != nil {
+		return 0, 0, fmt.Errorf("解析 Git 行数统计失败: %w", err)
+	}
+	return added, deleted, nil
+}
+
+// untrackedNumStat 使用隔离的临时 index 标记 intent-to-add，让 Git 自身负责
+// 文本、二进制和行数语义；真实仓库 index 不会被 observer 修改。
+func (i *Inspector) untrackedNumStat(ctx context.Context, root string, pathspec []byte) ([]byte, error) {
+	indexDirectory, err := os.MkdirTemp("", "trellis-dashboard-git-index-")
+	if err != nil {
+		return nil, fmt.Errorf("创建 Git 临时索引失败: %w", err)
+	}
+	defer os.RemoveAll(indexDirectory)
+
+	environment := []string{"GIT_INDEX_FILE=" + filepath.Join(indexDirectory, "index")}
+	if _, err := i.runLimitedCommand(
+		ctx,
+		i.timeout,
+		root,
+		"准备未跟踪文件行数统计",
+		maxRefOutputBytes,
+		ErrGitOutputTooLarge,
+		pathspec,
+		environment,
+		"add", "--intent-to-add", "--pathspec-from-file=-", "--pathspec-file-nul",
+	); err != nil {
+		return nil, err
+	}
+
+	return i.runLimitedCommand(
+		ctx,
+		i.timeout,
+		root,
+		"读取未跟踪文件行数统计",
+		MaxNumStatBytes,
+		ErrGitOutputTooLarge,
+		nil,
+		environment,
+		"diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "--",
+	)
 }
 
 // Commits 返回最近提交，limit 缺省为 20，并限制为最多 100 条。
@@ -365,7 +434,7 @@ func (i *Inspector) runLimited(
 	limitError error,
 	args ...string,
 ) ([]byte, error) {
-	return i.runLimitedWithTimeout(ctx, i.timeout, root, operation, limit, limitError, args...)
+	return i.runLimitedCommand(ctx, i.timeout, root, operation, limit, limitError, nil, nil, args...)
 }
 
 func (i *Inspector) runLimitedWithTimeout(
@@ -375,6 +444,20 @@ func (i *Inspector) runLimitedWithTimeout(
 	operation string,
 	limit int64,
 	limitError error,
+	args ...string,
+) ([]byte, error) {
+	return i.runLimitedCommand(ctx, timeout, root, operation, limit, limitError, nil, nil, args...)
+}
+
+func (i *Inspector) runLimitedCommand(
+	ctx context.Context,
+	timeout time.Duration,
+	root string,
+	operation string,
+	limit int64,
+	limitError error,
+	input []byte,
+	environment []string,
 	args ...string,
 ) ([]byte, error) {
 	commandContext, cancel := context.WithTimeout(ctx, timeout)
@@ -389,6 +472,12 @@ func (i *Inspector) runLimitedWithTimeout(
 	}
 
 	cmd := i.newCommand(commandContext, root, args...)
+	if input != nil {
+		cmd.Stdin = bytes.NewReader(input)
+	}
+	if len(environment) > 0 {
+		cmd.Env = append(cmd.Env, environment...)
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("%s失败: 创建输出管道: %w", operation, err)

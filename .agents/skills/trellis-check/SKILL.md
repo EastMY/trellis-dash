@@ -1,98 +1,60 @@
 ---
 name: trellis-check
-description: "Comprehensive quality verification: spec compliance, lint, type-check, tests, cross-layer data flow, code reuse, and consistency checks. Use when code is written and needs quality verification, before committing changes, or to catch context drift during long sessions."
+description: "Run risk-proportionate verification for the current Trellis task, classify failures, make only in-scope fixes, and record structured evidence."
 ---
 
-# Code Quality Check
+# Trellis Quality Check
 
-Comprehensive quality verification for recently written code. Combines spec compliance, cross-layer safety, and pre-commit checks.
+## 1. Scope the review
 
----
+Read project `AGENTS.md`, the current diff, and only applicable specs. If a Trellis task is active, also read `prd.md` plus optional design/implementation artifacts and map each acceptance criterion to evidence. For taskless direct work, verify the explicit user request and changed behavior instead.
 
-## Step 1: Identify What Changed
+Follow project tool routing. Use a configured structural index for definitions/callers/impact and `rg` for literal text; fall back transparently if the index is unavailable.
 
-```bash
-git diff --name-only HEAD
-git status
+## 2. Choose relevant checks
+
+Run validation proportional to changed behavior and repository guidance: focused tests first, then broader lint/type-check/build when risk or project completion criteria require them. Do not run every available suite by default.
+
+For each result classify failures as:
+
+- `current-task`: caused by or blocking this task;
+- `pre-existing`: reproduced outside the task change;
+- `environment`: missing service, credentials, device, network, or platform;
+- `tooling`: broken/unavailable verifier;
+- `uncertain`: evidence is insufficient.
+
+Fix only current-task issues that are within authorized scope. Small mechanical fixes are allowed; design or scope changes return to the main session/user.
+
+Retry the same unchanged check at most twice after targeted fixes. If it still fails, stop, preserve the output, classify it, and report the next discriminating action. When a check cannot run, explain why and use the best available substitute.
+
+## 3. Review dimensions
+
+- Acceptance criteria and user-visible behavior.
+- Relevant tests and regression coverage.
+- Type, lint, build, or runtime checks required by the project.
+- Cross-layer contracts when the change spans layers.
+- Security, data integrity, compatibility, and rollback risks when applicable.
+- No unrelated changes or suppressed failures.
+
+## 4. Record evidence
+
+For an active Trellis task, create or update `<task>/verification.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "acceptance": "passed",
+  "summary": "What was verified",
+  "checks": [
+    {"command": "exact command", "result": "passed", "reason": "optional note"}
+  ],
+  "workCommits": []
+}
 ```
 
-## Step 2: Read Task Artifacts and Applicable Specs
+Allowed check results are `passed`, `failed`, and `skipped`; skipped entries require a reason. Set overall status/acceptance to `passed` only when the evidence supports it. Phase 3.4 fills `workCommits` after committing.
 
-Read the current task artifacts in order:
+For taskless direct work, skip `verification.json` and report the same evidence directly.
 
-- `prd.md`
-- `design.md` if present
-- `implement.md` if present
-
-```bash
-python3 ./.trellis/scripts/get_context.py --mode packages
-```
-
-For each changed package/layer, read the spec index and follow its **Quality Check** section:
-
-```bash
-cat .trellis/spec/<package>/<layer>/index.md
-```
-
-Read the specific guideline files referenced — the index is a pointer, not the goal.
-
-## Step 3: Run Project Checks
-
-Run the project's lint, type-check, and test commands. Fix any failures before proceeding.
-
-## Step 4: Review Against Checklist
-
-### Code Quality
-
-- [ ] Linter passes?
-- [ ] Type checker passes (if applicable)?
-- [ ] Tests pass?
-- [ ] No debug logging left in?
-- [ ] No suppressed warnings or type-safety bypasses?
-
-### Test Coverage
-
-- [ ] New function → unit test added?
-- [ ] Bug fix → regression test added?
-- [ ] Changed behavior → existing tests updated?
-
-### Spec Sync
-
-- [ ] Does `.trellis/spec/` need updates? (new patterns, conventions, lessons learned)
-
-> "If I fixed a bug or discovered something non-obvious, should I document it so future me won't hit the same issue?" → If YES, update the relevant spec doc.
-
-## Step 5: Cross-Layer Dimensions (if applicable)
-
-Skip this step if your change is confined to a single layer.
-
-### A. Data Flow (changes touch 3+ layers)
-
-- [ ] Read flow traces correctly: Storage → Service → API → UI
-- [ ] Write flow traces correctly: UI → API → Service → Storage
-- [ ] Types/schemas correctly passed between layers?
-- [ ] Errors properly propagated to caller?
-
-### B. Code Reuse (modifying constants, creating utilities)
-
-- [ ] Searched for existing similar code before creating new?
-  ```bash
-  grep -r "pattern" src/
-  ```
-- [ ] If 2+ places define same value → extracted to shared constant?
-- [ ] After batch modification, all occurrences updated?
-
-### C. Import/Dependency (creating new files)
-
-- [ ] Correct import paths (relative vs absolute)?
-- [ ] No circular dependencies?
-
-### D. Same-Layer Consistency
-
-- [ ] Other places using the same concept are consistent?
-
----
-
-## Step 6: Report and Fix
-
-Report violations found and fix them directly. Re-run project checks after fixes.
+Report findings, fixes, open risks, and exact validation results. Never commit or push from this skill.

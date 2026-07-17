@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
+import { useAppStore } from "../store/app";
 import type { Project } from "../types";
-import { AppShell, projectListPollingOptions } from "./AppShell";
+import { AppShell, orderProjects, projectListPollingOptions } from "./AppShell";
 
 vi.mock("../api/client", () => ({
   api: {
@@ -56,6 +57,27 @@ describe("AppShell 项目标签", () => {
     });
   });
 
+  beforeEach(() => {
+    window.localStorage.clear();
+    useAppStore.setState({ projectOrder: [] });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("按已保存顺序展示项目，并把新增项目追加在末尾", () => {
+    const projects = [
+      project("alpha", "Alpha", 2),
+      project("beta", "Beta", 0),
+      project("gamma", "Gamma", 1),
+    ];
+
+    expect(orderProjects(projects, ["beta", "missing", "alpha"]).map((item) => item.id))
+      .toEqual(["beta", "alpha", "gamma"]);
+  });
+
   it("仅在页面可见时轮询全部项目，并在恢复前台或网络后立即刷新", () => {
     expect(projectListPollingOptions(true)).toEqual({
       refetchInterval: 10_000,
@@ -100,5 +122,59 @@ describe("AppShell 项目标签", () => {
 
     expect(await screen.findByRole("button", { name: "Alpha，2 个活跃任务" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Beta，0 个活跃任务" })).toBeInTheDocument();
+  });
+
+  it("拖动项目标签后立即重排并持久化顺序", async () => {
+    vi.mocked(api.listProjects).mockResolvedValue([
+      project("alpha", "Alpha", 2),
+      project("beta", "Beta", 0),
+      project("gamma", "Gamma", 1),
+    ]);
+    vi.mocked(api.getDashboard).mockResolvedValue({
+      project: project("alpha", "Alpha", 2),
+      statistics: { total: 3, active: 3, archived: 0, blocked: 0, completedToday: 0, byStatus: {} },
+      completionTrend: [],
+      gitCommitTrend: [],
+      gitCommitTrendAvailable: false,
+      activeTasks: [],
+      sessions: [],
+      recentActivity: [],
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/projects/alpha"]}>
+          <Routes>
+            <Route path="/projects/:projectId" element={<AppShell />}>
+              <Route index element={<div>项目内容</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const alpha = await screen.findByRole("button", { name: "Alpha，2 个活跃任务" });
+    const gamma = screen.getByRole("button", { name: "Gamma，1 个活跃任务" });
+    const transfer = {
+      effectAllowed: "uninitialized",
+      dropEffect: "none",
+      setData: vi.fn(),
+      getData: vi.fn(() => "gamma"),
+    };
+    fireEvent.dragStart(gamma, { dataTransfer: transfer });
+    fireEvent.dragOver(alpha, { dataTransfer: transfer });
+    fireEvent.drop(alpha, { dataTransfer: transfer });
+
+    const tagGroup = screen.getByRole("group", { name: "切换并排序项目" });
+    expect(within(tagGroup).getAllByRole("button").map((button) => button.getAttribute("aria-label")))
+      .toEqual([
+        "Gamma，1 个活跃任务",
+        "Alpha，2 个活跃任务",
+        "Beta，0 个活跃任务",
+      ]);
+    expect(useAppStore.getState().projectOrder).toEqual(["gamma", "alpha", "beta"]);
+    expect(JSON.parse(window.localStorage.getItem("trellis-dashboard-preferences") ?? "{}").state.projectOrder)
+      .toEqual(["gamma", "alpha", "beta"]);
   });
 });

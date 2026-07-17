@@ -24,3 +24,10 @@ dashboard.yaml
 
 # CodeGraph 为本地派生索引
 .codegraph/
+
+# Trellis 工作流数据仅保留在本地
+.trellis/
+
+# Codex 本地审查截图与临时缓存
+.codex-audit/
+.codex-tmp/

@@ -58,8 +58,8 @@ func TestInspectorSnapshot(t *testing.T) {
 			first.Conflicted,
 		)
 	}
-	if first.LinesAdded != 2 || first.LinesDeleted != 2 {
-		t.Fatalf("代码行统计不符: added=%d deleted=%d，期望 2/2", first.LinesAdded, first.LinesDeleted)
+	if first.LinesAdded != 3 || first.LinesDeleted != 2 {
+		t.Fatalf("代码行统计不符: added=%d deleted=%d，期望 3/2", first.LinesAdded, first.LinesDeleted)
 	}
 	if len(first.Files) != 4 {
 		t.Fatalf("文件数 = %d，期望 4", len(first.Files))
@@ -109,6 +109,53 @@ func TestInspectorSnapshot(t *testing.T) {
 	}
 	if third.Hash == second.Hash {
 		t.Fatal("其他 worktree Dirty 变化后快照 Hash 应变化")
+	}
+}
+
+func TestInspectorSnapshotIncludesUntrackedLineStats(t *testing.T) {
+	root := newTestRepository(t)
+	writeTestFile(t, filepath.Join(root, ".gitignore"), "ignored.txt\n")
+	runGit(t, root, "add", "--", ".gitignore")
+	runGit(t, root, "commit", "-m", "增加忽略规则")
+
+	writeTestFile(t, filepath.Join(root, "untracked.txt"), "第一行\n第二行")
+	writeTestFile(t, filepath.Join(root, "nested", "未跟踪.txt"), "第三行\n")
+	writeTestFile(t, filepath.Join(root, "empty.txt"), "")
+	if err := os.WriteFile(filepath.Join(root, "binary.dat"), []byte{0, 1, 2, '\n'}, 0o644); err != nil {
+		t.Fatalf("写入未跟踪二进制文件: %v", err)
+	}
+	writeTestFile(t, filepath.Join(root, "ignored.txt"), "不应统计\n不应统计\n")
+
+	snapshot, err := NewInspector(2*time.Second, MaxDiffBytes).Snapshot(context.Background(), "untracked-lines", root)
+	if err != nil {
+		t.Fatalf("读取未跟踪文件快照: %v", err)
+	}
+	if snapshot.Untracked != 4 {
+		t.Fatalf("未跟踪文件数 = %d，期望 4", snapshot.Untracked)
+	}
+	if snapshot.LinesAdded != 3 || snapshot.LinesDeleted != 0 {
+		t.Fatalf("未跟踪行数统计 = +%d/-%d，期望 +3/-0", snapshot.LinesAdded, snapshot.LinesDeleted)
+	}
+	if staged := strings.TrimSpace(runGitOutput(t, root, "diff", "--cached", "--name-only", "HEAD", "--")); staged != "" {
+		t.Fatalf("行数统计不应修改真实 Git index，发现暂存文件: %q", staged)
+	}
+}
+
+func TestInspectorSnapshotIncludesUntrackedLinesWithoutHead(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init", "-b", "main")
+	writeTestFile(t, filepath.Join(root, "first.txt"), "第一行\n第二行\n")
+
+	canonicalRoot := canonicalTestPath(t, root)
+	snapshot, err := NewInspector(2*time.Second, MaxDiffBytes).Snapshot(context.Background(), "initial", canonicalRoot)
+	if err != nil {
+		t.Fatalf("读取无 HEAD 仓库快照: %v", err)
+	}
+	if snapshot.Head != "" {
+		t.Fatalf("无提交仓库 HEAD = %q，期望为空", snapshot.Head)
+	}
+	if snapshot.LinesAdded != 2 || snapshot.LinesDeleted != 0 {
+		t.Fatalf("无 HEAD 仓库行数统计 = +%d/-%d，期望 +2/-0", snapshot.LinesAdded, snapshot.LinesDeleted)
 	}
 }
 
@@ -336,6 +383,22 @@ func TestInspectorCommandOutputLimits(t *testing.T) {
 		}
 		_, err := inspector.Snapshot(context.Background(), "large-numstat", root)
 		assertOutputLimitError(t, err, "读取 Git 行数统计", MaxNumStatBytes)
+	})
+
+	t.Run("untracked numstat", func(t *testing.T) {
+		// race 模式下测试 helper 进程启动更慢，留足预算以稳定验证输出上限本身。
+		inspector := NewInspector(10*time.Second, MaxDiffBytes)
+		inspector.commandFactory = func(ctx context.Context, commandRoot string, args ...string) *exec.Cmd {
+			if len(args) > 0 && args[0] == "status" {
+				return helperCommand(ctx, 0, "# branch.oid (initial)\x00# branch.head main\x00? untracked.txt\x00")
+			}
+			if len(args) > 0 && args[0] == "diff" {
+				return helperCommand(ctx, MaxNumStatBytes+1, "")
+			}
+			return helperCommand(ctx, 0, "")
+		}
+		_, err := inspector.Snapshot(context.Background(), "large-untracked-numstat", root)
+		assertOutputLimitError(t, err, "读取未跟踪文件行数统计", MaxNumStatBytes)
 	})
 
 	t.Run("commits", func(t *testing.T) {

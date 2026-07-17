@@ -377,11 +377,14 @@ pre,
   color: var(--text-secondary);
   background: var(--surface-soft);
   font: inherit;
-  cursor: pointer;
-  transition: border-color .15s ease, color .15s ease, background-color .15s ease;
+  cursor: grab;
+  transition: border-color .15s ease, color .15s ease, background-color .15s ease, opacity .15s ease, transform .15s ease;
 }
 .project-tag:hover { border-color: var(--border-strong); color: var(--text); background: var(--surface-raised); }
 .project-tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.project-tag:active { cursor: grabbing; }
+.project-tag-dragging { opacity: .45; }
+.project-tag-drop-target { border-color: var(--accent-border); transform: translateY(-1px); }
 .project-tag-active,
 .project-tag-active:hover { border-color: var(--accent-border); color: var(--accent-text); background: var(--accent-soft); }
 .project-tag-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -866,10 +869,17 @@ pre,
     min-height: 0;
     margin-bottom: 12px;
   }
+  /* 固定顶部信息区尺寸，避免切换不同固有高度的面板时参与 Flex 收缩而产生纵向跳动。 */
+  .codegraph-page > .page-header,
+  .codegraph-metrics,
+  .codegraph-panel-switch {
+    flex: 0 0 auto;
+  }
   .codegraph-workspace {
     min-height: 0;
     height: auto;
-    flex: 1 1 auto;
+    /* 工作区只占用顶部信息区之外的剩余高度，不再以当前可见面板的固有尺寸作为基准。 */
+    flex: 1 1 0;
   }
   .codegraph-canvas,
   .codegraph-canvas-empty { min-height: 0; }
