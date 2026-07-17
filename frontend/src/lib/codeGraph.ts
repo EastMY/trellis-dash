@@ -35,6 +35,8 @@ export interface CodeGraphDerivedGraph {
 
 export const MAX_CODEGRAPH_NODES = 300;
 export const MAX_CODEGRAPH_EDGES = 600;
+// 一个 expansion 对应一个一跳关系 Query，单独设上限避免 revision 刷新时出现无界扇出。
+export const MAX_CODEGRAPH_EXPANSIONS = 64;
 export const CODEGRAPH_NODE_WIDTH = 228;
 
 const COLUMN_GAP = 288;
@@ -59,6 +61,20 @@ export function codeGraphKindLabel(kind: string): string {
 
 export function codeGraphExpansionKey(expansion: Pick<CodeGraphExpansionRequest, "symbol" | "direction">): string {
   return `${expansion.symbol.id}:${expansion.direction}`;
+}
+
+export function appendCodeGraphExpansion(
+  current: CodeGraphExpansionRequest[],
+  request: CodeGraphExpansionRequest,
+): CodeGraphExpansionRequest[] {
+  if (current.some((item) => codeGraphExpansionKey(item) === codeGraphExpansionKey(request))) return current;
+  if (current.length >= MAX_CODEGRAPH_EXPANSIONS) return current;
+  return [...current, request];
+}
+
+export function codeGraphExpansionLimitMessage(expansionCount: number): string | undefined {
+  if (expansionCount < MAX_CODEGRAPH_EXPANSIONS) return undefined;
+  return `画布已达到 ${MAX_CODEGRAPH_EXPANSIONS} 个展开方向上限，请折叠已有分支后继续。`;
 }
 
 /**

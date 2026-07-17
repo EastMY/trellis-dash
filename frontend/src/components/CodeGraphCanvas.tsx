@@ -15,13 +15,16 @@ import { Alert, Button, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import {
+  appendCodeGraphExpansion,
   CODEGRAPH_NODE_WIDTH,
+  codeGraphExpansionLimitMessage,
   codeGraphExpansionKey,
   codeGraphEdgeKey,
   codeGraphKindLabel,
   deriveCodeGraph,
   layoutCodeGraph,
   MAX_CODEGRAPH_EDGES,
+  MAX_CODEGRAPH_EXPANSIONS,
   MAX_CODEGRAPH_NODES,
   pruneCodeGraphExpansions,
 } from "../lib/codeGraph";
@@ -52,6 +55,11 @@ export function CodeGraphCanvas({ projectId, rootSymbol, paused = false }: CodeG
       queryKey: ["project", projectId, "codegraph", "relations", request.symbol.id, request.direction, 0, 50],
       queryFn: () => api.getCodeGraphRelations(projectId, request.symbol.id, request.direction, 50, 0),
       enabled: !paused,
+      // 外部变化只由项目 revision 失效；焦点和重连不重复刷新全部已展开关系。
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
     })),
   });
 
@@ -71,7 +79,9 @@ export function CodeGraphCanvas({ projectId, rootSymbol, paused = false }: CodeG
   const loadingKeys = useMemo(() => new Set(expansions.flatMap((request, index) =>
     relationQueries[index]?.isFetching ? [codeGraphExpansionKey(request)] : [])), [expansions, loadingRevision]);
   const queryError = relationQueries.find((query) => query.isError)?.error;
-  const limitReached = graph.nodeLimitReached || graph.edgeLimitReached;
+  const expansionLimitReached = expansions.length >= MAX_CODEGRAPH_EXPANSIONS;
+  const expansionLimitMessage = codeGraphExpansionLimitMessage(expansions.length);
+  const limitReached = graph.nodeLimitReached || graph.edgeLimitReached || expansionLimitReached;
 
   const toggleSymbol = useCallback((
     symbol: CodeGraphSymbol,
@@ -90,9 +100,7 @@ export function CodeGraphCanvas({ projectId, rootSymbol, paused = false }: CodeG
       return;
     }
     if (limitReached) return;
-    setExpansions((current) => {
-      return current.some((item) => codeGraphExpansionKey(item) === key) ? current : [...current, request];
-    });
+    setExpansions((current) => appendCodeGraphExpansion(current, request));
   }, [expandedKeys, expansionResults, limitReached, rootSymbol]);
 
   const positionedNodes = useMemo<Node[]>(() => layoutCodeGraph(graph.records.values()).map((record) => {
@@ -181,6 +189,8 @@ export function CodeGraphCanvas({ projectId, rootSymbol, paused = false }: CodeG
     ? `画布已达到 ${MAX_CODEGRAPH_NODES} 个符号上限，请重新选择中心符号缩小范围。`
     : graph.edgeLimitReached
       ? `画布已达到 ${MAX_CODEGRAPH_EDGES} 条关系上限，请重新选择中心符号缩小范围。`
+      : expansionLimitMessage
+        ? expansionLimitMessage
       : graph.truncatedRelations[0]
         ? `“${graph.truncatedRelations[0].symbol.name}”的${graph.truncatedRelations[0].direction === "callers" ? "上游" : "下游"}关系较多，当前显示前 ${graph.truncatedRelations[0].visible} 条。`
         : undefined;

@@ -102,6 +102,101 @@ func TestReaderSearchAndRelationsUseExactSymbolID(t *testing.T) {
 	}
 }
 
+func TestReaderSearchPreservesSubstringRankingAndPagination(t *testing.T) {
+	t.Parallel()
+	root := createCodeGraphFixture(t)
+	database, err := sql.Open("sqlite", databasePath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`
+		INSERT INTO nodes(id, kind, name, qualified_name, file_path, language, start_line, end_line, signature) VALUES
+			('function:exact', 'function', 'handle', 'handle', 'internal/store/store.go', 'go', 60, 60, '()'),
+			('function:prefix', 'function', 'handler', 'handler', 'internal/store/store.go', 'go', 61, 61, '()'),
+			('function:substring', 'function', 'preHandlePost', 'preHandlePost', 'internal/store/store.go', 'go', 62, 62, '()');
+	`); err != nil {
+		database.Close()
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reader := NewReader()
+	results, err := reader.Search(context.Background(), root, "HANDLE", "function", 30, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results.Total != 5 || len(results.Items) != 5 {
+		t.Fatalf("大小写不敏感子串结果异常: %+v", results)
+	}
+	if results.Items[0].ID != "function:exact" || results.Items[len(results.Items)-1].ID != "function:substring" {
+		t.Fatalf("精确、前缀、子串排序异常: %+v", results.Items)
+	}
+
+	last, err := reader.Search(context.Background(), root, "handle", "function", 1, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last.Total != 5 || len(last.Items) != 1 || last.Items[0].ID != "function:substring" || last.HasMore {
+		t.Fatalf("末页分页异常: %+v", last)
+	}
+	beyond, err := reader.Search(context.Background(), root, "handle", "function", 1, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beyond.Total != 5 || len(beyond.Items) != 0 || beyond.HasMore {
+		t.Fatalf("offset 越界分页异常: %+v", beyond)
+	}
+	empty, err := reader.Search(context.Background(), root, "not-present", "function", 30, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty.Total != 0 || len(empty.Items) != 0 {
+		t.Fatalf("空搜索结果异常: %+v", empty)
+	}
+}
+
+func TestReaderCachesSchemaUntilIndexIdentityChanges(t *testing.T) {
+	t.Parallel()
+	root := createCodeGraphFixture(t)
+	reader := NewReader()
+	baseValidator := reader.validateSchema
+	validationCount := 0
+	reader.validateSchema = func(ctx context.Context, db *sql.DB) error {
+		validationCount++
+		return baseValidator(ctx, db)
+	}
+
+	if _, err := reader.Status(context.Background(), root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.Search(context.Background(), root, "handle", "", 30, 0); err != nil {
+		t.Fatal(err)
+	}
+	if validationCount != 1 {
+		t.Fatalf("未变化索引的 schema 校验次数 = %d，期望 1", validationCount)
+	}
+
+	database, err := sql.Open("sqlite", databasePath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`ALTER TABLE nodes RENAME COLUMN signature TO old_signature`); err != nil {
+		database.Close()
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.Status(context.Background(), root); !errors.Is(err, ErrIncompatibleSchema) {
+		t.Fatalf("索引身份变化后错误 = %v，期望重新识别不兼容 schema", err)
+	}
+	if validationCount != 2 {
+		t.Fatalf("索引变化后的 schema 校验次数 = %d，期望 2", validationCount)
+	}
+}
+
 func TestReaderValidationAndUnavailableStates(t *testing.T) {
 	t.Parallel()
 	reader := NewReader()

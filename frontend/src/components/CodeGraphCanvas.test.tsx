@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, type UseQueryOptions } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,11 +79,12 @@ function relationPage(center: CodeGraphSymbol, direction: CodeGraphDirection): C
 
 function renderCanvas(root: CodeGraphSymbol) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <CodeGraphCanvas projectId="demo" rootSymbol={root} />
     </QueryClientProvider>,
   );
+  return { ...result, queryClient };
 }
 
 describe("CodeGraphCanvas", () => {
@@ -100,7 +101,7 @@ describe("CodeGraphCanvas", () => {
   afterEach(() => cleanup());
 
   it("选择根符号后同时加载上下游，并可从关系节点继续展开", async () => {
-    renderCanvas(symbol("root"));
+    const { queryClient } = renderCanvas(symbol("root"));
 
     await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledTimes(2));
     expect(api.getCodeGraphRelations).toHaveBeenCalledWith("demo", "root", "callers", 50, 0);
@@ -114,6 +115,17 @@ describe("CodeGraphCanvas", () => {
     expect(screen.getByLabelText("节点-root")).toHaveAttribute("data-target-position", "left");
     expect(screen.getByLabelText("调用链缩略图")).toHaveAttribute("data-position", "top-left");
     expect(screen.getByLabelText("调用链缩略图")).toHaveStyle({ width: "120px", height: "80px" });
+    const rootCallers = queryClient.getQueryCache().find({
+      queryKey: ["project", "demo", "codegraph", "relations", "root", "callers", 0, 50],
+    });
+    // QueryCache 的公开类型只暴露核心选项；运行时仍保留创建 Observer 时的刷新策略。
+    const relationOptions = rootCallers?.options as UseQueryOptions | undefined;
+    expect(relationOptions?.staleTime).toBe(Infinity);
+    expect(relationOptions?.refetchOnWindowFocus).toBe(false);
+    expect(relationOptions?.refetchOnReconnect).toBe(false);
+    expect(relationOptions?.refetchOnMount).toBe(false);
+    await queryClient.invalidateQueries({ queryKey: ["project", "demo", "codegraph"] });
+    await waitFor(() => expect(api.getCodeGraphRelations).toHaveBeenCalledTimes(4));
 
     const rootActions = within(screen.getByLabelText("节点-root"));
     expect(rootActions.getByRole("button", { name: "上游" })).toHaveAttribute("aria-pressed", "true");

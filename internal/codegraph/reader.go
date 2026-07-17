@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	sqlite "modernc.org/sqlite"
@@ -49,10 +50,24 @@ var requiredColumns = map[string][]string{
 // 只接纳来源为 route 的引用，避免把普通符号引用混入调用链。
 const relationEdgePredicate = `(e.kind = 'calls' OR (e.kind = 'references' AND source_node.kind = 'route'))`
 
-// Reader 按请求读取外部 CodeGraph 索引，不持有连接或可变缓存。
-type Reader struct{}
+// Reader 按请求短连接读取外部 CodeGraph 索引，只缓存已经验证过的磁盘 schema 身份。
+type Reader struct {
+	schemaMu       sync.Mutex
+	schemaCache    map[string]schemaCacheEntry
+	validateSchema func(context.Context, *sql.DB) error
+}
 
-func NewReader() *Reader { return &Reader{} }
+type schemaCacheEntry struct {
+	identity string
+	dbInfo   os.FileInfo
+}
+
+func NewReader() *Reader {
+	return &Reader{
+		schemaCache:    make(map[string]schemaCacheEntry),
+		validateSchema: validateSchema,
+	}
+}
 
 func databasePath(projectRoot string) string {
 	return filepath.Join(projectRoot, ".codegraph", "codegraph.db")
@@ -203,13 +218,10 @@ func (r *Reader) Search(ctx context.Context, projectRoot, query, kind string, li
 		args = append(args, kind)
 	}
 
-	var total int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE `+where, args...).Scan(&total); err != nil {
-		return Page[Symbol]{}, classifyDatabaseError("统计 CodeGraph 搜索结果", err)
-	}
 	selectArgs := append(append([]any{}, args...), query, query, query, limit, offset)
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, kind, name, qualified_name, file_path, language, start_line, end_line, COALESCE(signature, '')
+		SELECT id, kind, name, qualified_name, file_path, language, start_line, end_line,
+		       COALESCE(signature, ''), COUNT(*) OVER()
 		FROM nodes WHERE `+where+`
 		ORDER BY CASE
 			WHEN lower(name) = lower(?) THEN 0
@@ -222,9 +234,30 @@ func (r *Reader) Search(ctx context.Context, projectRoot, query, kind string, li
 		return Page[Symbol]{}, classifyDatabaseError("搜索 CodeGraph 符号", err)
 	}
 	defer rows.Close()
-	items, err := scanSymbols(rows)
-	if err != nil {
-		return Page[Symbol]{}, err
+	items := make([]Symbol, 0, limit)
+	total := 0
+	for rows.Next() {
+		var item Symbol
+		var rowTotal int
+		if err := rows.Scan(
+			&item.ID, &item.Kind, &item.Name, &item.QualifiedName, &item.FilePath,
+			&item.Language, &item.StartLine, &item.EndLine, &item.Signature, &rowTotal,
+		); err != nil {
+			return Page[Symbol]{}, classifyDatabaseError("解析 CodeGraph 搜索结果", err)
+		}
+		if len(items) == 0 {
+			total = rowTotal
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return Page[Symbol]{}, classifyDatabaseError("遍历 CodeGraph 搜索结果", err)
+	}
+	if len(items) == 0 {
+		// 窗口函数在空结果或 offset 越界时没有行可携带 total，仅此时回退一次 count。
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE `+where, args...).Scan(&total); err != nil {
+			return Page[Symbol]{}, classifyDatabaseError("统计 CodeGraph 搜索结果", err)
+		}
 	}
 	return Page[Symbol]{Items: items, Total: total, Limit: limit, Offset: offset, HasMore: offset+len(items) < total}, nil
 }
@@ -318,16 +351,18 @@ func (r *Reader) open(ctx context.Context, projectRoot string) (*sql.DB, os.File
 	query.Add("_pragma", "query_only(1)")
 	query.Add("_pragma", "busy_timeout(1500)")
 	walInfo, walErr := os.Stat(path + "-wal")
+	shmInfo, shmErr := os.Stat(path + "-shm")
+	if shmErr != nil && !errors.Is(shmErr, os.ErrNotExist) {
+		return nil, nil, fmt.Errorf("%w: 读取 CodeGraph SHM: %v", ErrInvalidDatabase, shmErr)
+	}
 	if errors.Is(walErr, os.ErrNotExist) || walErr == nil && walInfo.Size() == 0 {
 		// 已完全 checkpoint 的索引可以安全 immutable 读取，避免 SQLite 为只读访问创建 WAL/SHM。
 		query.Set("immutable", "1")
 	} else if walErr != nil {
 		return nil, nil, fmt.Errorf("%w: 读取 CodeGraph WAL: %v", ErrInvalidDatabase, walErr)
-	} else if _, err := os.Stat(path + "-shm"); errors.Is(err, os.ErrNotExist) {
+	} else if errors.Is(shmErr, os.ErrNotExist) {
 		// 非空 WAL 需要 SHM 才能得到一致快照；Observer 不代替 CodeGraph 创建它。
 		return nil, nil, fmt.Errorf("%w: CodeGraph WAL 存在但共享内存尚未就绪", ErrBusy)
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("%w: 读取 CodeGraph SHM: %v", ErrInvalidDatabase, err)
 	}
 	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String()
 	db, err := sql.Open("sqlite", dsn)
@@ -341,11 +376,43 @@ func (r *Reader) open(ctx context.Context, projectRoot string) (*sql.DB, os.File
 		db.Close()
 		return nil, nil, classifyDatabaseError("连接 CodeGraph 数据库", err)
 	}
-	if err := validateSchema(ctx, db); err != nil {
+	identity := schemaIdentity(info, walInfo, shmInfo)
+	if err := r.ensureSchema(ctx, db, path, identity, info); err != nil {
 		db.Close()
 		return nil, nil, err
 	}
 	return db, info, nil
+}
+
+func schemaIdentity(info, walInfo, shmInfo os.FileInfo) string {
+	fileIdentity := func(value os.FileInfo) string {
+		if value == nil {
+			return "missing"
+		}
+		return fmt.Sprintf("%d:%d:%s", value.Size(), value.ModTime().UnixNano(), value.Mode().String())
+	}
+	return fileIdentity(info) + "|wal=" + fileIdentity(walInfo) + "|shm=" + fileIdentity(shmInfo)
+}
+
+// ensureSchema 只缓存成功验证；索引文件或 WAL/SHM 任一身份变化都会重新探测外部 schema。
+func (r *Reader) ensureSchema(ctx context.Context, db *sql.DB, path, identity string, info os.FileInfo) error {
+	r.schemaMu.Lock()
+	defer r.schemaMu.Unlock()
+	if cached, ok := r.schemaCache[path]; ok && cached.identity == identity && os.SameFile(cached.dbInfo, info) {
+		return nil
+	}
+	validator := r.validateSchema
+	if validator == nil {
+		validator = validateSchema
+	}
+	if err := validator(ctx, db); err != nil {
+		return err
+	}
+	if r.schemaCache == nil {
+		r.schemaCache = make(map[string]schemaCacheEntry)
+	}
+	r.schemaCache[path] = schemaCacheEntry{identity: identity, dbInfo: info}
+	return nil
 }
 
 func validateSchema(ctx context.Context, db *sql.DB) error {

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { CodeGraphRelation, CodeGraphRelationPage, CodeGraphSymbol } from "../types";
 import {
+  appendCodeGraphExpansion,
+  codeGraphExpansionLimitMessage,
   codeGraphKindLabel,
   codeGraphExpansionKey,
   deriveCodeGraph,
   layoutCodeGraph,
   MAX_CODEGRAPH_EDGES,
+  MAX_CODEGRAPH_EXPANSIONS,
   MAX_CODEGRAPH_NODES,
   nearestDepth,
   pruneCodeGraphExpansions,
@@ -114,6 +117,27 @@ describe("代码图谱布局", () => {
     }]);
     expect(denseGraph.relations.size).toBe(MAX_CODEGRAPH_EDGES);
     expect(denseGraph.edgeLimitReached).toBe(true);
+  });
+});
+
+describe("代码图谱查询预算", () => {
+  it("最多保留 64 个唯一展开方向，同时允许重复请求保持幂等", () => {
+    const expansions = Array.from({ length: MAX_CODEGRAPH_EXPANSIONS }, (_, index) => ({
+      symbol: symbol(`node-${index}`, `${index}.go`),
+      direction: "callees" as const,
+      depth: index,
+    }));
+    const overflow = {
+      symbol: symbol("overflow", "overflow.go"),
+      direction: "callees" as const,
+      depth: MAX_CODEGRAPH_EXPANSIONS,
+    };
+
+    expect(appendCodeGraphExpansion(expansions, overflow)).toBe(expansions);
+    expect(appendCodeGraphExpansion(expansions, expansions[0])).toBe(expansions);
+    expect(appendCodeGraphExpansion(expansions.slice(0, -1), overflow)).toHaveLength(MAX_CODEGRAPH_EXPANSIONS);
+    expect(codeGraphExpansionLimitMessage(MAX_CODEGRAPH_EXPANSIONS - 1)).toBeUndefined();
+    expect(codeGraphExpansionLimitMessage(MAX_CODEGRAPH_EXPANSIONS)).toContain("请折叠已有分支后继续");
   });
 });
 
