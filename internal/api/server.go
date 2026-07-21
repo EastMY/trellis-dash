@@ -3,6 +3,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/yunnnn/trellis-dash/internal/app"
 	"github.com/yunnnn/trellis-dash/internal/codegraph"
+	"github.com/yunnnn/trellis-dash/internal/codexusage"
 	"github.com/yunnnn/trellis-dash/internal/gitstate"
 	"github.com/yunnnn/trellis-dash/internal/store"
 	"github.com/yunnnn/trellis-dash/internal/webui"
@@ -25,6 +27,7 @@ type Server struct {
 	picker        directoryPicker
 	projectsMu    sync.Mutex
 	gitCache      *gitResultCache
+	codexUsage    codexUsageService
 }
 
 type codeGraphSyncController interface {
@@ -34,10 +37,14 @@ type codeGraphSyncController interface {
 }
 
 func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstate.Inspector, logger *slog.Logger) http.Handler {
+	return newServer(repository, supervisor, git, logger, codexusage.NewServiceForDatabase(repository.DatabasePath(), logger))
+}
+
+func newServer(repository *store.Store, supervisor *app.Supervisor, git *gitstate.Inspector, logger *slog.Logger, usage codexUsageService) http.Handler {
 	s := &Server{
 		store: repository, supervisor: supervisor, git: git, logger: logger,
 		codegraph: codegraph.NewReader(), codegraphSync: codegraph.NewSyncManager(logger),
-		picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(),
+		picker: newNativeDirectoryPicker(), gitCache: newGitResultCache(), codexUsage: usage,
 	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -66,6 +73,7 @@ func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstat
 		r.Post("/projects/{projectID}/rescan", s.rescanProject)
 		r.Get("/projects/{projectID}/revision", s.getRevision)
 		r.Get("/projects/{projectID}/dashboard", s.getDashboard)
+		r.Get("/projects/{projectID}/codex-usage", s.getCodexUsage)
 		r.Get("/projects/{projectID}/codegraph/status", s.getCodeGraphStatus)
 		r.Post("/projects/{projectID}/codegraph/sync", s.syncCodeGraph)
 		r.Get("/projects/{projectID}/codegraph/structure", s.getCodeGraphStructure)
@@ -91,15 +99,33 @@ func NewServer(repository *store.Store, supervisor *app.Supervisor, git *gitstat
 }
 
 func apiTimeout(next http.Handler) http.Handler {
-	timed := middleware.Timeout(30 * time.Second)(next)
+	return apiTimeoutWithDuration(next, 30*time.Second)
+}
+
+func apiTimeoutWithDuration(next http.Handler, timeout time.Duration) http.Handler {
+	timed := middleware.Timeout(timeout)(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 原生目录窗口需要等待用户操作，不应被普通 API 的固定超时打断。
-		if r.URL.Path == "/api/v1/system/directory-picker" {
+		if bypassAPITimeout(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		timed.ServeHTTP(w, r)
 	})
+}
+
+func bypassAPITimeout(path string) bool {
+	// 原生目录窗口等待用户操作；Codex 首次统计可能需要扫描数 GB 日志。
+	// 两者都绕过服务端固定超时，但仍沿用客户端 request context 的取消信号。
+	if path == "/api/v1/system/directory-picker" {
+		return true
+	}
+	const prefix = "/api/v1/projects/"
+	const suffix = "/codex-usage"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return false
+	}
+	projectID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	return projectID != "" && !strings.Contains(projectID, "/")
 }
 
 func securityHeaders(next http.Handler) http.Handler {

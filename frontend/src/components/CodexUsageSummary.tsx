@@ -1,0 +1,39 @@
+import { WarningOutlined } from "@ant-design/icons";
+import { Statistic, Tag, Typography } from "antd";
+import type { CodexUsageResponse } from "../types";
+
+interface CodexUsageSummaryProps {
+  data: CodexUsageResponse;
+  compact?: boolean;
+}
+
+export function CodexUsageSummary({ data, compact = false }: CodexUsageSummaryProps) {
+  return (
+    <div
+      className={`codex-usage-summary${compact ? " codex-usage-summary--compact" : ""}`}
+      aria-label={`Codex 使用汇总，总 Token ${data.totalTokens}，总费用 ${data.totalCostUsd} 美元`}
+    >
+      <Statistic title="总 Token" value={data.totalTokens} groupSeparator="," />
+      <Statistic
+        title="已知模型总费用"
+        value={data.totalCostUsd}
+        prefix="$"
+        precision={compact ? 4 : 6}
+      />
+      <div className="codex-usage-status">
+        <Typography.Text type="secondary">
+          {data.sessionCount.toLocaleString()} 个会话 · {data.dateFrom} 至 {data.dateTo}
+        </Typography.Text>
+        <div className="codex-usage-tags">
+          {data.costPartial && (
+            <Tag icon={<WarningOutlined />} color="warning">部分费用未计价</Tag>
+          )}
+          {data.skippedFiles > 0 && (
+            <Tag color="warning">已跳过 {data.skippedFiles.toLocaleString()} 个文件</Tag>
+          )}
+          {data.sessionCount === 0 && <Tag>暂无匹配会话</Tag>}
+        </div>
+      </div>
+    </div>
+  );
+}

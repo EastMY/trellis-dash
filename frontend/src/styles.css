@@ -153,6 +153,18 @@
 
 * { box-sizing: border-box; }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 html,
 body,
 #root {
@@ -478,15 +490,51 @@ pre,
 .trend-swatch { width: 18px; height: 2px; border-radius: 99px; }
 .trend-swatch-completion { background: var(--accent); }
 .trend-swatch-git { background: var(--warning); }
-.completion-trend-scroll { width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
-.completion-trend-chart { display: block; width: 100%; min-width: 640px; height: auto; overflow: visible; }
-.trend-grid-line { stroke: var(--chart-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.trend-axis-label { fill: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; }
-.trend-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.trend-line-completion { stroke: var(--accent); }
-.trend-line-git { stroke: var(--warning); }
-.trend-hit-area { fill: transparent; stroke: transparent; outline: none; }
-.trend-hit-area:focus { fill: var(--surface); stroke: var(--focus-ring); stroke-width: 1.5; }
+.completion-trend-chart-wrap { position: relative; width: 100%; min-width: 0; }
+.completion-trend-chart { width: 100%; height: 112px; }
+
+.codex-usage-page { max-width: 1320px; }
+.codex-usage-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  align-items: end;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.codex-usage-filters label { min-width: 0; display: grid; gap: 7px; }
+.codex-usage-content { display: grid; gap: 16px; }
+.codex-usage-loading {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.codex-usage-summary {
+  display: grid;
+  grid-template-columns: minmax(160px, .8fr) minmax(200px, .8fr) minmax(260px, 1.4fr);
+  align-items: center;
+  gap: 16px;
+}
+.codex-usage-summary .ant-statistic { min-width: 0; }
+.codex-usage-summary .ant-statistic-content { font-family: var(--font-mono); font-size: 26px; }
+.codex-usage-status { min-width: 0; display: grid; justify-items: end; gap: 8px; text-align: right; }
+.codex-usage-tags { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.codex-usage-tags .ant-tag { margin: 0; }
+.codex-usage-chart-panel { min-width: 0; overflow: hidden; }
+.codex-usage-chart-wrap { position: relative; width: 100%; min-width: 0; }
+.codex-usage-chart { width: 100%; height: 278px; }
+.codex-usage-chart-wrap--compact .codex-usage-chart { height: 92px; }
+.codex-usage-empty-label { display: block; padding: 28px; color: var(--text-tertiary); text-align: center; }
+.codex-usage-overview .section-heading { margin-bottom: 8px; }
+.codex-usage-overview-loading { min-height: 104px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.codex-usage-summary--compact {
+  grid-template-columns: minmax(120px, .7fr) minmax(150px, .8fr) minmax(210px, 1.3fr);
+  gap: 10px;
+}
+.codex-usage-summary--compact .ant-statistic-content { font-size: 20px; }
+.codex-usage-summary--compact .ant-statistic-title,
+.codex-usage-summary--compact .codex-usage-status { font-size: 11px; }
 .task-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .task-grid-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .task-card-link {
@@ -931,6 +979,7 @@ pre,
   .detail-columns { grid-template-columns: 1fr; }
   .git-summary { grid-template-columns: 1fr; }
   .codegraph-workspace { min-height: 610px; height: calc(100dvh - 330px); }
+  .codex-usage-filters { grid-template-columns: repeat(2, minmax(0, max-content)); }
 }
 
 @media (max-width: 760px) {
@@ -964,6 +1013,23 @@ pre,
   .skeleton-metrics { grid-template-columns: repeat(2, 1fr); }
   .codegraph-searchbar { grid-template-columns: 1fr; }
   .codegraph-canvas-alert { width: calc(100% - 24px); }
+  .codex-usage-filters { grid-template-columns: 1fr; align-items: stretch; }
+  .codex-usage-filters .ant-segmented { width: 100%; }
+  .codex-usage-filters .ant-segmented-group { width: 100%; }
+  .codex-usage-filters .ant-segmented-item { flex: 1; min-width: 0; text-align: center; }
+  .codex-usage-summary,
+  .codex-usage-summary--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .codex-usage-status { grid-column: 1 / -1; justify-items: start; text-align: left; }
+  .codex-usage-tags { justify-content: flex-start; }
+  .completion-trend-heading { align-items: stretch; flex-direction: column; gap: 6px; }
+  .completion-trend-legend { justify-content: flex-start; }
+}
+
+@media (max-width: 480px) {
+  /* 超窄屏让长 Token/费用数字独占一行，避免两列统计互相挤压。 */
+  .codex-usage-summary,
+  .codex-usage-summary--compact { grid-template-columns: minmax(0, 1fr); }
+  .codex-usage-status { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,6 +3,7 @@ export function selectedMenuKey(pathname: string): string {
   if (pathname.includes("/tasks")) return "tasks";
   if (pathname.includes("/sessions")) return "sessions";
   if (pathname.includes("/git")) return "git";
+  if (pathname.includes("/codex-usage")) return "codex-usage";
   if (pathname.includes("/activity")) return "activity";
   if (pathname.includes("/codegraph")) return "codegraph";
   if (pathname.includes("/settings")) return "settings";
@@ -20,6 +21,7 @@ export function projectSectionPath(pathname: string): string {
     archive: "/tasks/archive",
     sessions: "/sessions",
     git: "/git",
+    "codex-usage": "/codex-usage",
     activity: "/activity",
     codegraph: "/codegraph",
     settings: "/settings",

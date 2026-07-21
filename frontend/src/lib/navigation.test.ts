@@ -8,6 +8,7 @@ describe("projectSectionPath", () => {
     ["/projects/yuni/tasks/archive", "/tasks/archive"],
     ["/projects/yuni/sessions", "/sessions"],
     ["/projects/yuni/git", "/git"],
+    ["/projects/yuni/codex-usage", "/codex-usage"],
     ["/projects/yuni/activity", "/activity"],
     ["/projects/yuni/codegraph", "/codegraph"],
     ["/projects/yuni/settings", "/settings"],

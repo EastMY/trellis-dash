@@ -4,7 +4,7 @@ import { App } from "antd";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../api/client";
-import type { DashboardSnapshot, Project } from "../types";
+import type { CodexUsageResponse, DashboardSnapshot, Project } from "../types";
 import { OverviewPage } from "./OverviewPage";
 
 const project: Project = {
@@ -29,15 +29,28 @@ const project: Project = {
 };
 
 vi.mock("../api/client", () => ({
-  api: { getDashboard: vi.fn(), pushGit: vi.fn() },
+  api: { getDashboard: vi.fn(), getCodexUsage: vi.fn(), pushGit: vi.fn() },
+}));
+
+vi.mock("../components/CompletionTrendChart", () => ({
+  CompletionTrendChart: () => <div>项目趋势图</div>,
+}));
+
+vi.mock("../components/CodexUsageBarChart", () => ({
+  CodexUsageBarChart: () => <div aria-label="Codex 迷你柱状图" />,
 }));
 
 vi.mock("../components/AppShell", () => ({
   useProjectContext: () => ({ project }),
 }));
 
-function renderPage(dashboard: DashboardSnapshot) {
+function renderPage(dashboard: DashboardSnapshot, codexResult: CodexUsageResponse | Error = codexUsage) {
   vi.mocked(api.getDashboard).mockResolvedValue(dashboard);
+  if (codexResult instanceof Error) {
+    vi.mocked(api.getCodexUsage).mockRejectedValue(codexResult);
+  } else {
+    vi.mocked(api.getCodexUsage).mockResolvedValue(codexResult);
+  }
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -50,10 +63,24 @@ function renderPage(dashboard: DashboardSnapshot) {
   );
 }
 
+const codexUsage: CodexUsageResponse = {
+  scope: "project",
+  days: 30,
+  dateFrom: "2026-06-22",
+  dateTo: "2026-07-21",
+  totalTokens: 1234,
+  totalCostUsd: 0.012345,
+  costPartial: false,
+  sessionCount: 2,
+  skippedFiles: 0,
+  items: [{ date: "2026-07-21", tokens: 1234, costUsd: 0.012345, costPartial: false }],
+};
+
 describe("OverviewPage Git 工作区", () => {
   afterEach(() => {
     cleanup();
     vi.mocked(api.getDashboard).mockReset();
+    vi.mocked(api.getCodexUsage).mockReset();
     vi.mocked(api.pushGit).mockReset();
   });
 
@@ -91,6 +118,9 @@ describe("OverviewPage Git 工作区", () => {
     expect(screen.getByText("-5")).toBeInTheDocument();
     expect(screen.getByText(/增加行/)).toBeInTheDocument();
     expect(screen.getByText(/删除行/)).toBeInTheDocument();
+    expect(await screen.findByText("Codex 使用统计")).toBeInTheDocument();
+    expect(api.getCodexUsage).toHaveBeenCalledWith(project.id, "project", 30);
+    expect(screen.getByRole("link", { name: /查看详情/ })).toHaveAttribute("href", "/codex-usage");
   });
 
   it("在卡片底部推送当前分支并显示领先提交数", async () => {
@@ -171,5 +201,22 @@ describe("OverviewPage Git 工作区", () => {
     fireEvent.mouseOver(button.parentElement!);
     expect(api.pushGit).not.toHaveBeenCalled();
     expect(await screen.findByText("没有待推送的提交")).toBeInTheDocument();
+  });
+
+  it("Codex 统计失败时只降级对应区域", async () => {
+    renderPage({
+      project,
+      statistics: { total: 0, active: 0, archived: 0, blocked: 0, completedToday: 0, byStatus: {} },
+      completionTrend: [],
+      gitCommitTrend: [],
+      gitCommitTrendAvailable: true,
+      activeTasks: [],
+      sessions: [],
+      recentActivity: [],
+    }, new Error("Codex 统计暂不可用"));
+
+    expect(await screen.findByText("Codex 统计暂不可用")).toBeInTheDocument();
+    expect(screen.getByText("项目概览")).toBeInTheDocument();
+    expect(screen.getByText("当前没有活跃任务")).toBeInTheDocument();
   });
 });

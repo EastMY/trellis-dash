@@ -20,7 +20,7 @@ export function ErrorState({ error, onRetry, compact = false }: ErrorStateProps)
       <Alert
         type="error"
         showIcon
-        message="加载失败"
+        title="加载失败"
         description={message}
         action={onRetry ? <Button onClick={onRetry}>重试</Button> : undefined}
       />

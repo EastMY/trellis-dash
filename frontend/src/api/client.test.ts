@@ -19,6 +19,34 @@ describe("API 客户端", () => {
     });
   });
 
+  it("Codex 统计接口编码项目 ID 和全部筛选条件", async () => {
+    const response = {
+      scope: "all",
+      days: 90,
+      dateFrom: "2026-04-23",
+      dateTo: "2026-07-21",
+      totalTokens: 12,
+      totalCostUsd: 0.001,
+      costPartial: false,
+      sessionCount: 1,
+      skippedFiles: 0,
+      items: [],
+    };
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      expect(url).toContain("/projects/demo%20project/codex-usage");
+      expect(url).toContain("scope=all");
+      expect(url).toContain("days=90");
+      return Promise.resolve(new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.getCodexUsage("demo project", "all", 90)).resolves.toEqual(response);
+  });
+
   it("目录选择取消时返回空结果", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
     await expect(api.selectDirectory()).resolves.toBeUndefined();

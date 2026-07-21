@@ -14,6 +14,7 @@ import "./styles.css";
 const AppShell = lazy(() => import("./components/AppShell").then((module) => ({ default: module.AppShell })));
 const ActivityPage = lazy(() => import("./pages/ActivityPage").then((module) => ({ default: module.ActivityPage })));
 const CodeGraphPage = lazy(() => import("./pages/CodeGraphPage").then((module) => ({ default: module.CodeGraphPage })));
+const CodexUsagePage = lazy(() => import("./pages/CodexUsagePage").then((module) => ({ default: module.CodexUsagePage })));
 const GitPage = lazy(() => import("./pages/GitPage").then((module) => ({ default: module.GitPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })));
 const OverviewPage = lazy(() => import("./pages/OverviewPage").then((module) => ({ default: module.OverviewPage })));
@@ -155,6 +156,7 @@ function DashboardApp() {
                 <Route path="tasks/:taskKey" element={<TaskDetailPage />} />
                 <Route path="sessions" element={<SessionsPage />} />
                 <Route path="git" element={<GitPage />} />
+                <Route path="codex-usage" element={<CodexUsagePage />} />
                 <Route path="activity" element={<ActivityPage />} />
                 <Route path="codegraph" element={<CodeGraphPage />} />
                 <Route path="settings" element={<SettingsPage />} />

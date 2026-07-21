@@ -33,6 +33,10 @@ function manualChunks(id: string): string | undefined {
   if (packageName.startsWith("@tanstack/")) {
     return "query-vendor";
   }
+  if (packageName.startsWith("@antv/")) {
+    // AntV 各包拥有明确的单向依赖边界；按包拆分可复用 G2 运行时，同时避免单个图表页面形成超大 chunk。
+    return `antv-${packageName.slice("@antv/".length).replaceAll("/", "-")}`;
+  }
 
   return undefined;
 }

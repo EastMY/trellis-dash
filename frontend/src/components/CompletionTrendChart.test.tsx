@@ -1,12 +1,35 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CompletionTrendChart } from "./CompletionTrendChart";
 
-afterEach(cleanup);
+const g2 = vi.hoisted(() => ({
+  instances: [] as Array<{
+    options: ReturnType<typeof vi.fn>;
+    render: ReturnType<typeof vi.fn>;
+    destroy: ReturnType<typeof vi.fn>;
+  }>,
+  Chart: vi.fn(function Chart() {
+    const instance = {
+      options: vi.fn(),
+      render: vi.fn().mockResolvedValue(undefined),
+      destroy: vi.fn(),
+    };
+    g2.instances.push(instance);
+    return instance;
+  }),
+}));
+
+vi.mock("../lib/g2", () => ({ Chart: g2.Chart }));
+
+afterEach(() => {
+  cleanup();
+  g2.instances.length = 0;
+  g2.Chart.mockClear();
+});
 
 describe("CompletionTrendChart", () => {
-  it("展示双曲线汇总与每日可访问提示", () => {
-    const { container } = render(
+  it("使用 G2 双折线并保留汇总与每日可访问文本", async () => {
+    render(
       <CompletionTrendChart
         completionItems={[
           { date: "2026-07-10", count: 2 },
@@ -23,14 +46,17 @@ describe("CompletionTrendChart", () => {
     expect(screen.getByText("90 天项目趋势")).toBeInTheDocument();
     expect(screen.getByLabelText("2026-07-10，完成任务 2 个")).toBeInTheDocument();
     expect(screen.getByLabelText("2026-07-11，Git 提交 3 次")).toBeInTheDocument();
-    expect(container.querySelector(".completion-trend-chart")).toHaveAttribute("viewBox", "0 0 860 112");
-    expect(container.querySelector(".trend-line-completion")?.tagName.toLowerCase()).toBe("path");
-    expect(container.querySelector(".trend-line-completion")?.getAttribute("d")).toContain(" C ");
-    expect(container.querySelector("polyline")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "最近 90 天每日完成任务与 Git 提交折线图" })).toBeInTheDocument();
+
+    await waitFor(() => expect(g2.instances[0]?.render).toHaveBeenCalled());
+    const options = g2.instances[0].options.mock.calls.at(-1)?.[0];
+    expect(options.type).toBe("view");
+    expect(options.children.map((child: { type: string }) => child.type)).toEqual(["line", "point"]);
+    expect(options.scale.color.domain).toEqual(["完成任务", "Git 提交"]);
   });
 
-  it("Git 失败时保留任务曲线并明确提示不可用", () => {
-    const { container } = render(
+  it("Git 失败时只给 G2 任务序列并明确提示不可用", async () => {
+    render(
       <CompletionTrendChart
         completionItems={[{ date: "2026-07-10", count: 2 }]}
         gitItems={[]}
@@ -40,6 +66,10 @@ describe("CompletionTrendChart", () => {
 
     expect(screen.getByText("Git 数据暂不可用")).toBeInTheDocument();
     expect(screen.getByLabelText("2026-07-10，完成任务 2 个")).toBeInTheDocument();
-    expect(container.querySelector(".trend-line-git")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Git 提交 .*次/)).not.toBeInTheDocument();
+    await waitFor(() => expect(g2.instances[0]?.render).toHaveBeenCalled());
+    expect(g2.instances[0].options.mock.calls.at(-1)?.[0].data).toEqual([
+      { date: "2026-07-10", count: 2, series: "完成任务" },
+    ]);
   });
 });

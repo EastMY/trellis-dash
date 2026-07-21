@@ -334,6 +334,30 @@ export interface DashboardSnapshot {
   recentActivity: ActivityEvent[];
 }
 
+export type CodexUsageScope = "project" | "all";
+export type CodexUsageDays = 7 | 30 | 90;
+export type CodexUsageMetric = "tokens" | "cost";
+
+export interface CodexUsageItem {
+  date: string;
+  tokens: number;
+  costUsd: number;
+  costPartial: boolean;
+}
+
+export interface CodexUsageResponse {
+  scope: CodexUsageScope;
+  days: CodexUsageDays;
+  dateFrom: string;
+  dateTo: string;
+  totalTokens: number;
+  totalCostUsd: number;
+  costPartial: boolean;
+  sessionCount: number;
+  skippedFiles: number;
+  items: CodexUsageItem[];
+}
+
 export interface TaskDetail {
   task: Task;
   artifacts: Artifact[];

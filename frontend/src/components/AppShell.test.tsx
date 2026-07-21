@@ -23,7 +23,11 @@ vi.mock("../hooks/useProjectPolling", () => ({
   }),
 }));
 
-vi.mock("./SidebarActivity", () => ({ SidebarActivity: () => null }));
+vi.mock("./SidebarActivity", () => ({
+  SidebarActivity: ({ onViewAll }: { onViewAll: () => void }) => (
+    <button onClick={onViewAll}>查看全部活动</button>
+  ),
+}));
 vi.mock("./ThemeToggle", () => ({ ThemeToggle: () => null }));
 vi.mock("./AddProjectModal", () => ({ AddProjectModal: () => null }));
 
@@ -114,6 +118,7 @@ describe("AppShell 项目标签", () => {
           <Routes>
             <Route path="/projects/:projectId" element={<AppShell />}>
               <Route index element={<div>项目内容</div>} />
+              <Route path="activity" element={<div>活动页面内容</div>} />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -122,6 +127,10 @@ describe("AppShell 项目标签", () => {
 
     expect(await screen.findByRole("button", { name: "Alpha，2 个活跃任务" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Beta，0 个活跃任务" })).toBeInTheDocument();
+    expect(screen.getByText("Codex 统计")).toBeInTheDocument();
+    expect(screen.queryByText("活动记录")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "查看全部活动" }));
+    expect(await screen.findByText("活动页面内容")).toBeInTheDocument();
   });
 
   it("拖动项目标签后立即重排并持久化顺序", async () => {

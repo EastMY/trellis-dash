@@ -9,6 +9,9 @@ import type {
   CodeGraphSyncMode,
   CodeGraphStructureEntry,
   CodeGraphSymbol,
+  CodexUsageDays,
+  CodexUsageResponse,
+  CodexUsageScope,
   DashboardSnapshot,
   GitCommit,
   GitSnapshot,
@@ -242,6 +245,18 @@ export const api = {
 
   getDashboard(projectId: string): Promise<DashboardSnapshot> {
     return request<DashboardSnapshot>(`/projects/${encodeURIComponent(projectId)}/dashboard`, {}, true);
+  },
+
+  getCodexUsage(
+    projectId: string,
+    scope: CodexUsageScope = "project",
+    days: CodexUsageDays = 30,
+  ): Promise<CodexUsageResponse> {
+    return request<CodexUsageResponse>(
+      `/projects/${encodeURIComponent(projectId)}/codex-usage${query({ scope, days })}`,
+      {},
+      true,
+    );
   },
 
   getRevision(projectId: string): Promise<RevisionBundle> {

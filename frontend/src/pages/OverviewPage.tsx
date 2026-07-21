@@ -9,11 +9,14 @@ import {
   ExclamationCircleOutlined,
   FileDoneOutlined,
   FolderOpenOutlined,
+  FundProjectionScreenOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { App, Button, Empty, Space, Statistic, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Empty, Space, Spin, Statistic, Tag, Tooltip, Typography } from "antd";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { CodexUsageBarChart } from "../components/CodexUsageBarChart";
+import { CodexUsageSummary } from "../components/CodexUsageSummary";
 import { CompletionTrendChart } from "../components/CompletionTrendChart";
 import { PageHeader } from "../components/PageHeader";
 import { ErrorState, PageSkeleton } from "../components/PageState";
@@ -29,6 +32,10 @@ export function OverviewPage() {
   const query = useQuery({
     queryKey: ["project", project.id, "dashboard"],
     queryFn: () => api.getDashboard(project.id),
+  });
+  const codexUsageQuery = useQuery({
+    queryKey: ["project", project.id, "codex-usage", "project", 30],
+    queryFn: () => api.getCodexUsage(project.id, "project", 30),
   });
   const pushMutation = useMutation({
     mutationFn: () => api.pushGit(project.id),
@@ -107,6 +114,35 @@ export function OverviewPage() {
             gitItems={dashboard.gitCommitTrend ?? []}
             gitAvailable={dashboard.gitCommitTrendAvailable}
           />
+
+          <section className="section-panel codex-usage-overview" aria-label="Codex 最近 30 天使用统计">
+            <div className="section-heading">
+              <div>
+                <Typography.Title level={4}>Codex 使用统计</Typography.Title>
+                <Typography.Text type="secondary">当前项目 · 最近 30 天</Typography.Text>
+              </div>
+              <Link to="codex-usage">
+                <Button size="small" icon={<FundProjectionScreenOutlined />}>查看详情</Button>
+              </Link>
+            </div>
+            {codexUsageQuery.isLoading ? (
+              <div className="codex-usage-overview-loading" aria-label="正在加载 Codex 使用统计">
+                <Spin size="small" />
+                <Typography.Text type="secondary">正在汇总…</Typography.Text>
+              </div>
+            ) : codexUsageQuery.isError || !codexUsageQuery.data ? (
+              <ErrorState compact error={codexUsageQuery.error} onRetry={() => void codexUsageQuery.refetch()} />
+            ) : (
+              <>
+                <CodexUsageSummary data={codexUsageQuery.data} compact />
+                {codexUsageQuery.data.sessionCount > 0 ? (
+                  <CodexUsageBarChart items={codexUsageQuery.data.items} metric="tokens" compact />
+                ) : (
+                  <Typography.Text type="secondary">最近 30 天暂无匹配会话</Typography.Text>
+                )}
+              </>
+            )}
+          </section>
 
           <section className="section-panel overview-active">
             <div className="section-heading">
