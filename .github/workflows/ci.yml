@@ -33,6 +33,12 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
+      - name: Build frontend
+        run: |
+          pnpm --dir frontend build
+          rm -rf internal/webui/dist
+          cp -R frontend/dist internal/webui/dist
+
       - name: Test Go
         run: go test -race ./...
 
@@ -42,11 +48,5 @@ jobs:
       - name: Test frontend
         run: pnpm --dir frontend test -- --run
 
-      - name: Build frontend
-        run: pnpm --dir frontend build
-
       - name: Build embedded binary
-        run: |
-          rm -rf internal/webui/dist
-          cp -R frontend/dist internal/webui/dist
-          go build -trimpath ./cmd/trellis-dashboard
+        run: go build -trimpath ./cmd/trellis-dashboard
