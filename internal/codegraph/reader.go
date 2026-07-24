@@ -73,11 +73,13 @@ func databasePath(projectRoot string) string {
 	return filepath.Join(projectRoot, ".codegraph", "codegraph.db")
 }
 
-// Fingerprint 只读取 DB/WAL/SHM 元数据，用作现有 revision 轮询的不透明变化令牌。
+// Fingerprint 只读取 DB/WAL 元数据，用作现有 revision 轮询的不透明变化令牌。
+// 不纳入 SHM：它只是 wal-index 的读侧协调状态，只读查询也可能刷新其 mtime
+// （macOS 多进程持有索引时已实测），而真实写入必然改变 WAL 追加或 DB 回写。
 func (r *Reader) Fingerprint(projectRoot string) string {
 	base := databasePath(projectRoot)
 	hash := sha256.New()
-	for _, suffix := range []string{"", "-wal", "-shm"} {
+	for _, suffix := range []string{"", "-wal"} {
 		name := base + suffix
 		info, err := os.Stat(name)
 		switch {

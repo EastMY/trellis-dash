@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReaderStatusAndStructure(t *testing.T) {
@@ -284,6 +285,47 @@ func TestReaderDoesNotModifyIndexFiles(t *testing.T) {
 	after := indexFileState(t, root)
 	if before != after {
 		t.Fatalf("只读查询修改了索引文件元数据\nbefore=%s\nafter=%s", before, after)
+	}
+}
+
+func TestFingerprintIgnoresReadSideShmNoise(t *testing.T) {
+	t.Parallel()
+	root := createCodeGraphFixture(t)
+	reader := NewReader()
+	base := reader.Fingerprint(root)
+
+	// fixture 保持 writer 连接，WAL/SHM 必须在场，与真实 CodeGraph watcher 一致。
+	shm := databasePath(root) + "-shm"
+	info, err := os.Stat(shm)
+	if err != nil {
+		t.Fatalf("fixture 缺少 SHM: %v", err)
+	}
+
+	// 模拟读侧噪声：真实环境（macOS、多进程持有索引）中只读查询会刷新 SHM mtime。
+	if err := os.Chtimes(shm, info.ModTime(), info.ModTime().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if noisy := reader.Fingerprint(root); noisy != base {
+		t.Fatalf("SHM 读侧元数据噪声不应改变指纹: before=%s after=%s", base, noisy)
+	}
+
+	// 真实索引写入（WAL 追加）必须仍然改变指纹。
+	database, err := sql.Open("sqlite", databasePath(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`
+		INSERT INTO nodes(id, kind, name, qualified_name, file_path, language, start_line, end_line, signature) VALUES
+			('function:new', 'function', 'newHandler', 'newHandler', 'internal/api/server.go', 'go', 70, 80, '()');
+	`); err != nil {
+		database.Close()
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if changed := reader.Fingerprint(root); changed == base {
+		t.Fatal("真实索引写入未改变指纹")
 	}
 }
 
