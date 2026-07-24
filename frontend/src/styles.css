@@ -151,6 +151,304 @@
   --sider-highlight: rgba(255, 255, 255, .9);
 }
 
+/* 插画风格（浅色）：米色纸感底 + 深描边 + 高饱和配色，与经典浅色成对维护。 */
+:root[data-theme-style="illustration"][data-theme="light"] {
+  color-scheme: light;
+  --app-bg: #fff9f0;
+  --surface: #ffffff;
+  --surface-raised: #fff0f6;
+  --surface-soft: #fff4e0;
+  --border: #2c2c2c;
+  --border-strong: #2c2c2c;
+  --text: #2c2c2c;
+  --text-secondary: #5a5348;
+  --text-tertiary: #8a8172;
+  --accent: #52c41a;
+  --accent-soft: #d9f7be;
+  --warning: #d48806;
+  --danger: #fa5252;
+  --success: #52c41a;
+  --link: #237804;
+  --link-hover: #52c41a;
+  --accent-border: #2c2c2c;
+  --accent-text: #237804;
+  --brand-bg: #ffe7ba;
+  --brand-text: #2c2c2c;
+  --error-border: #2c2c2c;
+  --error-bg: #fff1f0;
+  --chart-grid: #e8e0d0;
+  --focus-ring: #2c2c2c;
+  --card-hover: #fff0f6;
+  --priority-p0-text: #c92a2a;
+  --priority-p0-bg: #ffe3e3;
+  --priority-p1-text: #d9480f;
+  --priority-p1-bg: #ffe8cc;
+  --priority-p2-text: #2b8a3e;
+  --priority-p2-bg: #d3f9d8;
+  --priority-p3-text: #5a5348;
+  --priority-p3-bg: #efe9dc;
+  --status-neutral-text: #5a5348;
+  --status-neutral-bg: #efe9dc;
+  --status-active-text: #2b8a3e;
+  --status-active-bg: #d3f9d8;
+  --status-waiting-text: #b8860b;
+  --status-waiting-bg: #fff3bf;
+  --status-danger-text: #c92a2a;
+  --status-danger-bg: #ffe3e3;
+  --status-success-text: #2b8a3e;
+  --status-success-bg: #d3f9d8;
+  --kanban-bg: #fff4e0;
+  --content-text: #3a352c;
+  --quote-border: #52c41a;
+  --quote-bg: #f4fce3;
+  --code-text: #237804;
+  --code-bg: #f4fce3;
+  --pre-text: #3a352c;
+  --pre-bg: #f7ecd8;
+  --raw-text: #5a5348;
+  --row-invalid: #fff3bf;
+  --row-selected: #ffe7ba;
+  --diff-border: #b8860b;
+  --diff-truncated-bg: #fff3bf;
+  --diff-text: #3a352c;
+  --diff-add-text: #2b8a3e;
+  --diff-add-bg: #d3f9d8;
+  --diff-delete-text: #c92a2a;
+  --diff-delete-bg: #ffe3e3;
+  --diff-hunk-text: #1971c2;
+  --diff-hunk-bg: #d0ebff;
+  --danger-border: #2c2c2c;
+  --welcome-glow: #ffe7ba;
+  --welcome-panel: rgba(255, 249, 240, .94);
+  --welcome-mark-bg: #fff0f6;
+  --sider-shadow: 0 24px 64px rgba(120, 90, 30, .16);
+  --header-shadow: 0 14px 40px rgba(120, 90, 30, .12);
+  --sider-highlight: rgba(255, 255, 255, .9);
+  --radius: 12px;
+  --shadow-hard: 4px 4px 0 #2c2c2c;
+}
+
+/* 插画风格（深色）：暖黑纸底 + 米色描边，保留插画的粗边与硬投影语言。 */
+:root[data-theme-style="illustration"][data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #211d18;
+  --surface: #2c2822;
+  --surface-raised: #38322a;
+  --surface-soft: #2a251f;
+  --border: #e8dfc8;
+  --border-strong: #e8dfc8;
+  --text: #f3ede1;
+  --text-secondary: #b8b0a0;
+  --text-tertiary: #8d877a;
+  --accent: #6fdd4b;
+  --accent-soft: #3a4a24;
+  --warning: #ffd93d;
+  --danger: #ff8787;
+  --success: #6fdd4b;
+  --link: #b7eb8f;
+  --link-hover: #d9f7be;
+  --accent-border: #e8dfc8;
+  --accent-text: #b7eb8f;
+  --brand-bg: #463b28;
+  --brand-text: #ffd93d;
+  --error-border: #e8dfc8;
+  --error-bg: #3d2420;
+  --chart-grid: #4a4438;
+  --focus-ring: #f3ede1;
+  --card-hover: #332e26;
+  --priority-p0-text: #ff8787;
+  --priority-p0-bg: #452a26;
+  --priority-p1-text: #ffc078;
+  --priority-p1-bg: #453722;
+  --priority-p2-text: #8ce99a;
+  --priority-p2-bg: #2f4426;
+  --priority-p3-text: #b8b0a0;
+  --priority-p3-bg: #38322a;
+  --status-neutral-text: #b8b0a0;
+  --status-neutral-bg: #38322a;
+  --status-active-text: #8ce99a;
+  --status-active-bg: #2f4426;
+  --status-waiting-text: #ffd93d;
+  --status-waiting-bg: #453d1e;
+  --status-danger-text: #ff8787;
+  --status-danger-bg: #452a26;
+  --status-success-text: #8ce99a;
+  --status-success-bg: #2f4426;
+  --kanban-bg: #2a251f;
+  --content-text: #d8d0be;
+  --quote-border: #6fdd4b;
+  --quote-bg: #2a2f1e;
+  --code-text: #b7eb8f;
+  --code-bg: #2a2f1e;
+  --pre-text: #d8d0be;
+  --pre-bg: #1a1712;
+  --raw-text: #b8b0a0;
+  --row-invalid: #453d1e;
+  --row-selected: #3a4a24;
+  --diff-border: #8a6d2f;
+  --diff-truncated-bg: #3a321a;
+  --diff-text: #d8d0be;
+  --diff-add-text: #8ce99a;
+  --diff-add-bg: #24381e;
+  --diff-delete-text: #ff8787;
+  --diff-delete-bg: #3d2420;
+  --diff-hunk-text: #a5d8ff;
+  --diff-hunk-bg: #22303c;
+  --danger-border: #e8dfc8;
+  --welcome-glow: #3a3020;
+  --welcome-panel: rgba(44, 40, 34, .94);
+  --welcome-mark-bg: #38322a;
+  --sider-shadow: 0 24px 70px rgba(0, 0, 0, .5);
+  --header-shadow: 0 14px 42px rgba(0, 0, 0, .35);
+  --sider-highlight: rgba(232, 223, 200, .08);
+  --radius: 12px;
+  --shadow-hard: 4px 4px 0 #e8dfc8;
+}
+
+/* 插画风格标志性视觉：用描边色的硬偏移投影替换 antd 默认柔和阴影。 */
+[data-theme-style="illustration"] .ant-card,
+[data-theme-style="illustration"] .ant-alert,
+[data-theme-style="illustration"] .ant-modal-content,
+[data-theme-style="illustration"] .ant-drawer-content,
+[data-theme-style="illustration"] .ant-notification-notice,
+[data-theme-style="illustration"] .ant-message-notice-content,
+[data-theme-style="illustration"] .ant-popover-inner,
+[data-theme-style="illustration"] .ant-tooltip-inner,
+[data-theme-style="illustration"] .ant-dropdown-menu,
+[data-theme-style="illustration"] .ant-select-dropdown,
+[data-theme-style="illustration"] .ant-picker-dropdown .ant-picker-panel-container,
+[data-theme-style="illustration"] .ant-input-outlined,
+[data-theme-style="illustration"] .ant-input-number,
+[data-theme-style="illustration"] .ant-input-affix-wrapper,
+[data-theme-style="illustration"] .ant-select-selector,
+[data-theme-style="illustration"] .ant-picker {
+  box-shadow: var(--shadow-hard);
+}
+
+/* 插画按钮：所有实体变体（主要/危险/默认/虚线）统一深色粗描边与硬投影，
+   覆盖 antd 按语义色生成的边框（含 hover/focus/active 态），文字/链接按钮保持干净。 */
+[data-theme-style="illustration"] .ant-btn:not(.ant-btn-text):not(.ant-btn-link):not(:disabled),
+[data-theme-style="illustration"] .ant-btn:not(.ant-btn-text):not(.ant-btn-link):not(:disabled):hover,
+[data-theme-style="illustration"] .ant-btn:not(.ant-btn-text):not(.ant-btn-link):not(:disabled):focus-visible,
+[data-theme-style="illustration"] .ant-btn:not(.ant-btn-text):not(.ant-btn-link):not(:disabled):active {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hard);
+}
+
+/* 插画风格浮层与反馈组件：antd 默认无边框，补上粗描边（硬投影已在上方统一声明）。 */
+[data-theme-style="illustration"] .ant-alert,
+[data-theme-style="illustration"] .ant-modal-content,
+[data-theme-style="illustration"] .ant-drawer-content,
+[data-theme-style="illustration"] .ant-notification-notice,
+[data-theme-style="illustration"] .ant-message-notice-content,
+[data-theme-style="illustration"] .ant-popover-inner,
+[data-theme-style="illustration"] .ant-tooltip-inner,
+[data-theme-style="illustration"] .ant-dropdown-menu,
+[data-theme-style="illustration"] .ant-select-dropdown {
+  border: 3px solid var(--border-strong);
+}
+
+/* 插画风格自定义卡片与面板：与 antd Card 一致的粗描边 + 硬投影。 */
+[data-theme-style="illustration"] .app-sider,
+[data-theme-style="illustration"] .app-header,
+[data-theme-style="illustration"] .section-panel,
+[data-theme-style="illustration"] .settings-section,
+[data-theme-style="illustration"] .task-card,
+[data-theme-style="illustration"] .kanban-column,
+[data-theme-style="illustration"] .data-table,
+[data-theme-style="illustration"] .artifact-panel,
+[data-theme-style="illustration"] .context-panel,
+[data-theme-style="illustration"] .diff-panel,
+[data-theme-style="illustration"] .raw-viewer,
+[data-theme-style="illustration"] .codegraph-workspace,
+[data-theme-style="illustration"] .welcome-panel {
+  border: 3px solid var(--border-strong);
+  box-shadow: var(--shadow-hard);
+}
+
+/* 插画风格标签：语义底色保留，统一深色描边与小号硬投影。 */
+[data-theme-style="illustration"] .ant-tag,
+[data-theme-style="illustration"] .project-tag {
+  border: 2px solid var(--border-strong);
+  box-shadow: 2px 2px 0 var(--border-strong);
+  font-weight: 600;
+}
+/* 滚动容器右侧留出投影空间，避免最后一个标签的硬投影被 overflow 裁掉。 */
+[data-theme-style="illustration"] .project-tag-scroll { padding-inline-end: 4px; }
+
+/* 插画风格统计区：由细分隔线升级为完整描边卡片，内部保留次级分隔。 */
+[data-theme-style="illustration"] .metric-strip {
+  border: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-hard);
+  overflow: hidden;
+}
+[data-theme-style="illustration"] .metric-strip .ant-statistic { border-right-width: 2px; }
+
+/* 插画分段切换：底座、选中贴纸和焦点态都使用与面板一致的描边语言。 */
+[data-theme-style="illustration"] .ant-segmented {
+  height: 40px;
+  padding: 2px;
+  border: 2px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  box-shadow: 3px 3px 0 var(--border-strong);
+}
+[data-theme-style="illustration"] .ant-segmented.ant-segmented-sm { height: 34px; }
+[data-theme-style="illustration"] .ant-segmented-group { height: 100%; }
+[data-theme-style="illustration"] .ant-segmented-item,
+[data-theme-style="illustration"] .ant-segmented-thumb {
+  border-radius: 6px;
+}
+[data-theme-style="illustration"] .ant-segmented-item {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+[data-theme-style="illustration"] .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+[data-theme-style="illustration"] .ant-segmented-item-selected,
+[data-theme-style="illustration"] .ant-segmented-thumb {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+[data-theme-style="illustration"] .ant-segmented-item:focus-visible,
+[data-theme-style="illustration"] .ant-segmented-item:has(.ant-segmented-item-input:focus-visible) {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* antd 图标默认偏细；插画主题用同色圆角描边加厚轮廓，保留原图标语义。 */
+[data-theme-style="illustration"] .anticon svg {
+  overflow: visible;
+  stroke: currentColor;
+  stroke-width: 22;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+/* 顶栏纯图标操作做成独立贴纸按钮，避免细线图标悬浮在粗描边容器中。 */
+[data-theme-style="illustration"] .app-header .ant-btn.ant-btn-text.ant-btn-icon-only:not(:disabled),
+[data-theme-style="illustration"] .app-header .ant-btn.ant-btn-text.ant-btn-icon-only:not(:disabled):hover,
+[data-theme-style="illustration"] .app-header .ant-btn.ant-btn-text.ant-btn-icon-only:not(:disabled):focus-visible {
+  border: 2px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface-soft);
+  box-shadow: 2px 2px 0 var(--border-strong);
+}
+[data-theme-style="illustration"] .app-header .ant-btn.ant-btn-text.ant-btn-icon-only:not(:disabled):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+[data-theme-style="illustration"] .app-header .ant-btn.ant-btn-text.ant-btn-icon-only:not(:disabled):active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
 * { box-sizing: border-box; }
 
 .visually-hidden {
@@ -310,19 +608,8 @@ pre,
 .sider-activity-timeline { margin: 0; padding-top: 3px; }
 .sider-activity-timeline .ant-timeline-item { padding-bottom: 13px; }
 .sider-activity-timeline .ant-timeline-item-last { padding-bottom: 0; }
-.sider-activity-timeline .ant-timeline-item-tail { border-inline-start-color: var(--border-strong); }
-.sider-activity-timeline .ant-timeline-item-head-custom {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--accent);
-  background: var(--surface);
-  font-size: 10px;
-}
-.sider-activity-timeline .ant-timeline-item-content { min-width: 0; margin-inline-start: 25px; }
+.sider-activity-timeline .ant-timeline-item-rail { border-inline-start-color: var(--border-strong); }
+.sider-activity-timeline .ant-timeline-item-content { min-width: 0; }
 .sider-activity-measure {
   position: absolute;
   inset: 3px 12px 10px;
@@ -365,7 +652,7 @@ pre,
 }
 .project-tag-scroll {
   min-width: 0;
-  max-width: 680px;
+  max-width: 960px;
   display: flex;
   gap: 6px;
   padding: 3px 1px 5px;
@@ -415,6 +702,8 @@ pre,
   color: var(--status-active-text);
   background: var(--status-active-bg);
 }
+/* 与项目标签同高，避免不同主题密度下按钮比标签高一截。 */
+.project-switcher .project-add-button { flex: 0 0 auto; width: 28px; height: 28px; padding: 0; font-size: 13px; }
 .header-status { flex: 0 0 auto; margin-left: 12px; }
 .mobile-menu-button { display: none; }
 .header-status .ant-badge-status-text { color: var(--text-secondary); font-size: 12px; }
@@ -474,7 +763,7 @@ pre,
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(310px, .75fr); align-items: start; gap: 16px; }
 .overview-primary,
 .overview-aside { min-width: 0; display: grid; align-content: start; gap: 16px; }
-.completion-trend { min-width: 0; padding: 8px 14px 5px; overflow: hidden; }
+.completion-trend { min-width: 0; padding: 8px 8px 0; overflow: hidden; }
 .completion-trend-heading {
   display: flex;
   align-items: flex-start;
@@ -483,7 +772,6 @@ pre,
   margin-bottom: 1px;
 }
 .completion-trend-heading h4.ant-typography { margin: 0; font-size: 14px; line-height: 1.25; }
-.completion-trend-heading .ant-typography-secondary { font-size: 11px; line-height: 1.25; }
 .completion-trend-legend { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; color: var(--text-secondary); font-size: 11px; }
 .completion-trend-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .completion-trend-legend strong { color: var(--text); font-family: var(--font-mono); font-weight: 600; }
@@ -491,7 +779,7 @@ pre,
 .trend-swatch-completion { background: var(--accent); }
 .trend-swatch-git { background: var(--warning); }
 .completion-trend-chart-wrap { position: relative; width: 100%; min-width: 0; }
-.completion-trend-chart { width: 100%; height: 112px; }
+.completion-trend-chart { width: 100%; height: 126px; }
 
 .codex-usage-page { max-width: 1320px; }
 .codex-usage-filters {
@@ -512,7 +800,7 @@ pre,
 }
 .codex-usage-summary {
   display: grid;
-  grid-template-columns: minmax(160px, .8fr) minmax(200px, .8fr) minmax(260px, 1.4fr);
+  grid-template-columns: minmax(160px, .8fr) repeat(2, minmax(180px, .8fr)) minmax(260px, 1.4fr);
   align-items: center;
   gap: 16px;
 }
@@ -524,17 +812,69 @@ pre,
 .codex-usage-chart-panel { min-width: 0; overflow: hidden; }
 .codex-usage-chart-wrap { position: relative; width: 100%; min-width: 0; }
 .codex-usage-chart { width: 100%; height: 278px; }
-.codex-usage-chart-wrap--compact .codex-usage-chart { height: 92px; }
+.codex-usage-chart-wrap--compact {
+  width: calc(100% + 16px);
+  margin: 0 -8px -12px;
+}
+.codex-usage-chart-wrap--compact .codex-usage-chart { height: 104px; }
 .codex-usage-empty-label { display: block; padding: 28px; color: var(--text-tertiary); text-align: center; }
-.codex-usage-overview .section-heading { margin-bottom: 8px; }
+.codex-usage-overview { min-width: 0; overflow: hidden; }
+.codex-usage-overview .section-heading { align-items: baseline; margin-bottom: 8px; }
+.codex-usage-overview-title { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.codex-usage-overview-title .ant-typography-secondary { font-size: 10px; white-space: nowrap; }
+.codex-usage-overview-actions { min-width: 0; display: flex; align-items: center; gap: 8px; }
+/* 概览卡片使用纯文字切换，避免插画主题的胶囊描边与硬投影抢占统计信息视觉层级。 */
+.codex-usage-overview .codex-usage-text-switch,
+[data-theme-style="illustration"] .codex-usage-overview .codex-usage-text-switch {
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-group { gap: 10px; }
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item,
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-thumb {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item-label {
+  min-height: 0;
+  padding: 0 1px;
+  line-height: 24px;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--text);
+  background: transparent;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item-selected {
+  color: var(--accent-text);
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent);
+  font-weight: 650;
+}
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item:focus-visible,
+.codex-usage-overview .codex-usage-text-switch .ant-segmented-item:has(.ant-segmented-item-input:focus-visible) {
+  border-radius: 3px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
 .codex-usage-overview-loading { min-height: 104px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .codex-usage-summary--compact {
-  grid-template-columns: minmax(120px, .7fr) minmax(150px, .8fr) minmax(210px, 1.3fr);
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  justify-content: start;
+  gap: 24px;
 }
-.codex-usage-summary--compact .ant-statistic-content { font-size: 20px; }
-.codex-usage-summary--compact .ant-statistic-title,
-.codex-usage-summary--compact .codex-usage-status { font-size: 11px; }
+.codex-usage-summary--compact .ant-statistic { display: flex; align-items: baseline; gap: 6px; }
+.codex-usage-summary--compact .ant-statistic .ant-statistic-title { margin: 0; font-size: 10px; line-height: 1; white-space: nowrap; }
+.codex-usage-summary--compact .ant-statistic-content { font-size: 16px; line-height: 1.2; }
 .task-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .task-grid-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .task-card-link {
@@ -948,6 +1288,8 @@ pre,
 .welcome-panel { max-width: 690px; padding: 54px 46px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--welcome-panel); text-align: left; }
 .welcome-mark { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 24px; border: 1px solid var(--accent-border); border-radius: var(--radius); color: var(--accent); background: var(--welcome-mark-bg); font-size: 22px; }
 .standalone-theme-toggle { position: fixed; top: 12px; right: 16px; z-index: 30; }
+/* 风格/明暗两个按钮的间距与头部 Space size={12} 保持一致。 */
+.theme-toggle { display: inline-flex; align-items: center; gap: 12px; }
 .welcome-panel h1.ant-typography { max-width: 14ch; margin-bottom: 14px; font-size: clamp(31px, 5vw, 50px); line-height: 1.08; letter-spacing: -.045em; }
 .welcome-panel p.ant-typography { max-width: 53ch; margin-bottom: 25px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
 
@@ -1019,6 +1361,8 @@ pre,
   .codex-usage-filters .ant-segmented-item { flex: 1; min-width: 0; text-align: center; }
   .codex-usage-summary,
   .codex-usage-summary--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .codex-usage-overview .section-heading { align-items: stretch; flex-direction: column; gap: 8px; }
+  .codex-usage-overview-actions { justify-content: space-between; }
   .codex-usage-status { grid-column: 1 / -1; justify-items: start; text-align: left; }
   .codex-usage-tags { justify-content: flex-start; }
   .completion-trend-heading { align-items: stretch; flex-direction: column; gap: 6px; }

@@ -175,6 +175,7 @@ export function GitPage() {
             children: files.length ? (
               <div className="git-files-layout">
                 <Table<GitFile>
+                  className="data-table"
                   rowKey={(file) => `${file.path}-${file.oldPath ?? ""}`}
                   size="small"
                   columns={fileColumns}
@@ -211,12 +212,12 @@ export function GitPage() {
           {
             key: "worktrees",
             label: `Worktrees (${worktrees.length})`,
-            children: <Table<Worktree> rowKey="path" size="small" columns={worktreeColumns} dataSource={worktrees} scroll={{ x: 900 }} pagination={false} />,
+            children: <Table<Worktree> className="data-table" rowKey="path" size="small" columns={worktreeColumns} dataSource={worktrees} scroll={{ x: 900 }} pagination={false} />,
           },
           {
             key: "commits",
             label: "最近提交",
-            children: commitsQuery.isError ? <ErrorState error={commitsQuery.error} compact /> : <Table<GitCommit> rowKey="hash" size="small" loading={commitsQuery.isLoading} columns={commitColumns} dataSource={commits} pagination={{ pageSize: 20 }} scroll={{ x: 850 }} />,
+            children: commitsQuery.isError ? <ErrorState error={commitsQuery.error} compact /> : <Table<GitCommit> className="data-table" rowKey="hash" size="small" loading={commitsQuery.isLoading} columns={commitColumns} dataSource={commits} pagination={{ pageSize: 20 }} scroll={{ x: 850 }} />,
           },
         ]}
       />

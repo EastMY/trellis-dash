@@ -37,7 +37,9 @@ vi.mock("../components/CompletionTrendChart", () => ({
 }));
 
 vi.mock("../components/CodexUsageBarChart", () => ({
-  CodexUsageBarChart: () => <div aria-label="Codex 迷你柱状图" />,
+  CodexUsageBarChart: ({ metric }: { metric: "tokens" | "cost" }) => (
+    <div aria-label={`Codex 迷你${metric === "tokens" ? "Token" : "费用"}柱状图`} />
+  ),
 }));
 
 vi.mock("../components/AppShell", () => ({
@@ -112,14 +114,32 @@ describe("OverviewPage Git 工作区", () => {
         worktrees: 1,
         updatedAt: "2026-07-13T00:00:00Z",
       },
-    });
+    }, { ...codexUsage, costPartial: true, skippedFiles: 1 });
 
     expect(await screen.findByText("+12")).toBeInTheDocument();
     expect(screen.getByText("-5")).toBeInTheDocument();
     expect(screen.getByText(/增加行/)).toBeInTheDocument();
     expect(screen.getByText(/删除行/)).toBeInTheDocument();
     expect(await screen.findByText("Codex 使用统计")).toBeInTheDocument();
+    expect(screen.getByText("最近 30 天")).toBeInTheDocument();
+    expect(screen.getByLabelText("统计范围")).toHaveTextContent("当前项目");
+    expect(screen.getByLabelText("统计范围")).toHaveTextContent("全部会话");
+    expect(screen.queryByText(/个会话 ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText("部分费用未计价")).not.toBeInTheDocument();
+    expect(screen.queryByText("已跳过 1 个文件")).not.toBeInTheDocument();
+    expect(screen.getByText("今日费用")).toBeInTheDocument();
+    expect(screen.getByLabelText(/今日费用 0\.012345 美元/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Codex 迷你Token柱状图")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("费用"));
+    expect(screen.getByLabelText("Codex 迷你费用柱状图")).toBeInTheDocument();
     expect(api.getCodexUsage).toHaveBeenCalledWith(project.id, "project", 30);
+    expect(api.getCodexUsage).toHaveBeenCalledTimes(1);
+
+    vi.mocked(api.getCodexUsage).mockResolvedValueOnce({ ...codexUsage, scope: "all", totalTokens: 4321 });
+    fireEvent.click(screen.getByText("全部会话"));
+    await waitFor(() => expect(api.getCodexUsage).toHaveBeenCalledWith(project.id, "all", 30));
+    expect(await screen.findByLabelText(/总 Token 4321/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /查看详情/ })).toHaveAttribute("href", "/codex-usage");
   });
 

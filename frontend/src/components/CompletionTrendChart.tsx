@@ -12,8 +12,8 @@ interface CompletionTrendChartProps {
   gitAvailable: boolean;
 }
 
-function formatDateLabel(date: string): string {
-  return `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+function formatDayLabel(date: string): string {
+  return date.slice(8, 10);
 }
 
 export function CompletionTrendChart({
@@ -36,22 +36,23 @@ export function CompletionTrendChart({
     const accent = chartCssColor("--accent", "#327a52");
     const warning = chartCssColor("--warning", "#a46d22");
     const text = chartCssColor("--text-tertiary", "#7b887e");
-    const grid = chartCssColor("--chart-grid", "#d8e0da");
     return {
       type: "view",
       data: series,
       paddingTop: 8,
-      paddingRight: 18,
-      paddingBottom: 26,
-      paddingLeft: 42,
+      paddingRight: 0,
+      paddingBottom: 16,
+      paddingLeft: 0,
       scale: {
-        x: { type: "point" },
+        // 移除点比例尺默认的首尾半格留白，让 90 天趋势充分利用横向空间。
+        x: { type: "point", padding: 0 },
         y: { domainMin: 0, nice: true, tickCount: 5 },
         color: { domain: ["完成任务", "Git 提交"], range: [accent, warning] },
       },
       axis: {
-        x: { title: false, tickCount: 5, labelFormatter: formatDateLabel, labelFill: text, tick: false },
-        y: { title: false, tickCount: 5, labelFill: text, gridStroke: grid, tick: false },
+        x: { title: false, tickCount: 5, labelFormatter: formatDayLabel, labelFill: text, tick: false },
+        // 折线高低已经足够表达趋势，隐藏 Y 轴把水平空间留给 90 天数据。
+        y: false,
       },
       legend: { color: false },
       interaction: { tooltip: { shared: true } },
@@ -79,10 +80,7 @@ export function CompletionTrendChart({
       aria-label={`最近 90 天趋势，完成 ${trend.completionTotal} 个任务${gitAvailable ? `，Git 提交 ${trend.gitCommitTotal} 次` : "，Git 数据暂不可用"}`}
     >
       <div className="completion-trend-heading">
-        <div>
-          <Typography.Title level={4}>90 天项目趋势</Typography.Title>
-          <Typography.Text type="secondary">每日完成任务数与当前 HEAD 可达的 Git 提交数</Typography.Text>
-        </div>
+        <Typography.Title level={4}>90 天项目趋势</Typography.Title>
         <div className="completion-trend-legend" aria-label="图例">
           <span><i className="trend-swatch trend-swatch-completion" />完成任务 <strong>{trend.completionTotal}</strong></span>
           {gitAvailable ? (
@@ -96,7 +94,7 @@ export function CompletionTrendChart({
       <div className="completion-trend-chart-wrap">
         <G2Chart
           className="completion-trend-chart"
-          height={112}
+          height={126}
           ariaLabel="最近 90 天每日完成任务与 Git 提交折线图"
           buildOptions={buildOptions}
         />

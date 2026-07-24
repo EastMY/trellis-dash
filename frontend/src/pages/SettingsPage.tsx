@@ -11,6 +11,7 @@ import { api } from "../api/client";
 import { useProjectContext } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { fullDate } from "../lib/format";
+import type { ThemeStyle } from "../lib/theme";
 import { useAppStore } from "../store/app";
 
 export function SettingsPage() {
@@ -20,6 +21,8 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const density = useAppStore((state) => state.density);
   const setDensity = useAppStore((state) => state.setDensity);
+  const themeStyle = useAppStore((state) => state.themeStyle);
+  const setThemeStyle = useAppStore((state) => state.setThemeStyle);
 
   const rescan = useMutation({
     mutationFn: () => api.rescanProject(project.id),
@@ -84,8 +87,21 @@ export function SettingsPage() {
       <section className="settings-section">
         <div className="settings-heading">
           <div>
+            <Typography.Title level={4}>界面风格</Typography.Title>
+            <Typography.Text type="secondary">插画风格使用粗描边与大圆角，密度随风格重排，可与明暗模式自由组合。</Typography.Text>
+          </div>
+        </div>
+        <Radio.Group value={themeStyle} onChange={(event) => setThemeStyle(event.target.value as ThemeStyle)}>
+          <Radio.Button value="classic">经典风格</Radio.Button>
+          <Radio.Button value="illustration">插画风格</Radio.Button>
+        </Radio.Group>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-heading">
+          <div>
             <Typography.Title level={4}>界面密度</Typography.Title>
-            <Typography.Text type="secondary">设置只保存在当前浏览器，不影响其他用户或项目。</Typography.Text>
+            <Typography.Text type="secondary">设置只保存在当前浏览器，不影响其他用户或项目。插画风格下密度由风格决定。</Typography.Text>
           </div>
         </div>
         <Radio.Group value={density} onChange={(event) => setDensity(event.target.value as "default" | "compact")}>

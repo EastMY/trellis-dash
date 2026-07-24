@@ -4,7 +4,6 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { groupActivityEvents } from "../lib/activity";
 import { eventLabel, fullDate, relativeDate } from "../lib/format";
 import type { ActivityEvent } from "../types";
-import { activityEventIcon } from "./ActivityEventIcon";
 
 interface SidebarActivityProps {
   items: ActivityEvent[];
@@ -60,7 +59,6 @@ export function SidebarActivity({
   const groups = useMemo(() => groupActivityEvents(items), [items]);
   const timelineItems = useMemo(() => groups.map(({ event, count }) => ({
     key: event.id,
-    icon: activityEventIcon(event),
     color: event.type.includes("error") || event.type.includes("fail") ? "red" : "gray",
     content: <ActivityTimelineContent event={event} count={count} />,
   })), [groups]);
@@ -75,10 +73,10 @@ export function SidebarActivity({
       const bodyTop = body.getBoundingClientRect().top;
       const itemBottoms = Array.from(measure.querySelectorAll<HTMLElement>(".ant-timeline-item")).map((item) => {
         const content = item.querySelector<HTMLElement>(".ant-timeline-item-content");
-        const head = item.querySelector<HTMLElement>(".ant-timeline-item-head");
+        const icon = item.querySelector<HTMLElement>(".ant-timeline-item-icon");
         return Math.max(
           content?.getBoundingClientRect().bottom ?? bodyTop,
-          head?.getBoundingClientRect().bottom ?? bodyTop,
+          icon?.getBoundingClientRect().bottom ?? bodyTop,
         ) - bodyTop;
       });
       const nextCount = countVisibleTimelineItems(body.clientHeight, itemBottoms);

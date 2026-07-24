@@ -44,13 +44,20 @@ describe("CodexUsageBarChart", () => {
     expect(options.encode).toEqual({ x: "date", y: "value", color: "priceState" });
   });
 
-  it("迷你费用图隐藏坐标轴并标记部分未计价", async () => {
+  it("迷你费用图显示紧凑 X 轴并标记部分未计价", async () => {
     render(<CodexUsageBarChart items={items} metric="cost" compact />);
 
     expect(screen.getByText("2026-07-21：$0.025000，部分未计价")).toBeInTheDocument();
     await waitFor(() => expect(g2.instances[0]?.render).toHaveBeenCalled());
     const options = g2.instances[0].options.mock.calls.at(-1)?.[0];
-    expect(options.axis).toEqual({ x: false, y: false });
+    expect(options.paddingLeft).toBe(0);
+    expect(options.paddingRight).toBe(0);
+    expect(options.paddingBottom).toBe(18);
+    expect(options.scale.x.padding).toBe(0.05);
+    expect(options.axis.y).toBe(false);
+    expect(options.axis.x.labelFormatter("2026-07-02")).toBe("02");
+    expect(options.axis.x.labelFormatter("2026-07-21")).toBe("21");
+    expect(g2.Chart).toHaveBeenCalledWith(expect.objectContaining({ height: 104 }));
     expect(options.data[1].priceState).toBe("部分未计价");
   });
 });

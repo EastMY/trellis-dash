@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextThemeMode, resolveThemeMode } from "./theme";
+import { nextThemeMode, nextThemeStyle, resolveThemeMode } from "./theme";
 
 describe("主题规则", () => {
   it("按跟随系统、浅色、深色的顺序循环", () => {
@@ -13,5 +13,10 @@ describe("主题规则", () => {
     expect(resolveThemeMode("system", false)).toBe("light");
     expect(resolveThemeMode("light", true)).toBe("light");
     expect(resolveThemeMode("dark", false)).toBe("dark");
+  });
+
+  it("风格在经典与插画之间来回切换", () => {
+    expect(nextThemeStyle("classic")).toBe("illustration");
+    expect(nextThemeStyle("illustration")).toBe("classic");
   });
 });

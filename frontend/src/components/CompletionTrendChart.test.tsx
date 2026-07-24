@@ -44,15 +44,24 @@ describe("CompletionTrendChart", () => {
     );
 
     expect(screen.getByText("90 天项目趋势")).toBeInTheDocument();
+    expect(screen.queryByText("每日完成任务数与当前 HEAD 可达的 Git 提交数")).not.toBeInTheDocument();
     expect(screen.getByLabelText("2026-07-10，完成任务 2 个")).toBeInTheDocument();
     expect(screen.getByLabelText("2026-07-11，Git 提交 3 次")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "最近 90 天每日完成任务与 Git 提交折线图" })).toBeInTheDocument();
 
     await waitFor(() => expect(g2.instances[0]?.render).toHaveBeenCalled());
+    expect(g2.Chart).toHaveBeenCalledWith(expect.objectContaining({ height: 126 }));
     const options = g2.instances[0].options.mock.calls.at(-1)?.[0];
     expect(options.type).toBe("view");
     expect(options.children.map((child: { type: string }) => child.type)).toEqual(["line", "point"]);
     expect(options.scale.color.domain).toEqual(["完成任务", "Git 提交"]);
+    expect(options.paddingLeft).toBe(0);
+    expect(options.paddingRight).toBe(0);
+    expect(options.paddingBottom).toBe(16);
+    expect(options.scale.x.padding).toBe(0);
+    expect(options.axis.y).toBe(false);
+    expect(options.axis.x.labelFormatter("2026-07-02")).toBe("02");
+    expect(options.axis.x.labelFormatter("2026-07-10")).toBe("10");
   });
 
   it("Git 失败时只给 G2 任务序列并明确提示不可用", async () => {

@@ -95,6 +95,76 @@ const lightTheme: ThemeConfig = {
   },
 };
 
+// 插画风格参考 Ant Design 官网预设：粗描边、大圆角、硬偏移投影与高饱和配色。
+// 插画 token 自带 controlHeight/fontSize，密度由风格决定，不再沿用经典主题的紧凑覆盖。
+const illustrationSharedToken: NonNullable<ThemeConfig["token"]> = {
+  colorPrimary: "#52c41a",
+  colorInfo: "#4dabf7",
+  colorSuccess: "#51cf66",
+  colorWarning: "#ffd93d",
+  colorError: "#fa5252",
+  lineWidth: 3,
+  lineWidthBold: 3,
+  borderRadius: 12,
+  borderRadiusLG: 16,
+  borderRadiusSM: 8,
+  controlHeight: 40,
+  controlHeightSM: 34,
+  controlHeightLG: 48,
+  fontSize: 15,
+  fontWeightStrong: 600,
+};
+
+const illustrationLightTheme: ThemeConfig = {
+  algorithm: theme.defaultAlgorithm,
+  cssVar: { prefix: "trellis" },
+  token: {
+    ...illustrationSharedToken,
+    colorText: "#2c2c2c",
+    colorTextSecondary: "#5a5348",
+    colorTextTertiary: "#8a8172",
+    colorBorder: "#2c2c2c",
+    colorBorderSecondary: "#2c2c2c",
+    colorBgBase: "#fff9f0",
+    colorBgLayout: "#fff9f0",
+    colorBgContainer: "#ffffff",
+    colorBgElevated: "#ffffff",
+  },
+  components: {
+    Layout: { headerBg: "#ffffff", siderBg: "#fff0f6", bodyBg: "#fff9f0" },
+    Menu: { activeBarBorderWidth: 0, itemBg: "transparent", subMenuItemBg: "transparent", itemSelectedBg: "#ffe7ba", itemSelectedColor: "#2c2c2c", itemHoverBg: "#fff0f6" },
+    Table: { headerBg: "#fff0f6", headerColor: "#2c2c2c", rowHoverBg: "#fff4e0", borderColor: "#2c2c2c", headerBorderRadius: 9 },
+    Tabs: { itemSelectedColor: "#237804", inkBarColor: "#52c41a" },
+    Button: { primaryShadow: "none", dangerShadow: "none", defaultShadow: "none", fontWeight: 600 },
+    Card: { colorBgContainer: "#fff0f6" },
+  },
+};
+
+const illustrationDarkTheme: ThemeConfig = {
+  algorithm: theme.darkAlgorithm,
+  cssVar: { prefix: "trellis" },
+  token: {
+    ...illustrationSharedToken,
+    colorText: "#f3ede1",
+    colorTextSecondary: "#b8b0a0",
+    colorTextTertiary: "#8d877a",
+    colorBorder: "#e8dfc8",
+    colorBorderSecondary: "#e8dfc8",
+    colorBgBase: "#211d18",
+    colorBgLayout: "#211d18",
+    colorBgContainer: "#2c2822",
+    colorBgElevated: "#38322a",
+  },
+  components: {
+    Layout: { headerBg: "#2a251f", siderBg: "#2e2428", bodyBg: "#211d18" },
+    Menu: { activeBarBorderWidth: 0, itemBg: "transparent", subMenuItemBg: "transparent", itemSelectedBg: "#463b28", itemSelectedColor: "#ffd93d", itemHoverBg: "#332e26" },
+    Table: { headerBg: "#2a251f", headerColor: "#d8d0be", rowHoverBg: "#332e26", borderColor: "#e8dfc8", headerBorderRadius: 9 },
+    Tabs: { itemSelectedColor: "#b7eb8f", inkBarColor: "#52c41a" },
+    Button: { primaryShadow: "none", dangerShadow: "none", defaultShadow: "none", fontWeight: 600 },
+    Card: { colorBgContainer: "#2c2822" },
+  },
+};
+
 function useSystemPrefersDark() {
   const [prefersDark, setPrefersDark] = React.useState(() => {
     // 无法读取系统主题时按需求回退到深色模式。
@@ -117,30 +187,47 @@ function useSystemPrefersDark() {
 function DashboardApp() {
   const density = useAppStore((state) => state.density);
   const themeMode = useAppStore((state) => state.themeMode);
+  const themeStyle = useAppStore((state) => state.themeStyle);
   const systemPrefersDark = useSystemPrefersDark();
   const resolvedTheme = resolveThemeMode(themeMode, systemPrefersDark);
 
+  const baseTheme =
+    themeStyle === "illustration"
+      ? resolvedTheme === "dark"
+        ? illustrationDarkTheme
+        : illustrationLightTheme
+      : resolvedTheme === "dark"
+        ? darkTheme
+        : lightTheme;
+
   React.useLayoutEffect(() => {
-    // data-theme 同时驱动原生 CSS 变量与浏览器内建控件的配色。
+    // data-theme 同时驱动原生 CSS 变量与浏览器内建控件的配色；
+    // data-theme-style 驱动经典/插画两套风格的原生 CSS 变量与硬投影规则。
     document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themeStyle = themeStyle;
     document.documentElement.style.colorScheme = resolvedTheme;
-  }, [resolvedTheme]);
+  }, [resolvedTheme, themeStyle]);
 
   return (
     <ConfigProvider
       locale={zhCN}
-      componentSize={density === "compact" ? "small" : "middle"}
+      componentSize={themeStyle === "illustration" ? "middle" : density === "compact" ? "small" : "middle"}
       theme={{
-        ...(resolvedTheme === "dark" ? darkTheme : lightTheme),
+        ...baseTheme,
         token: {
-          ...(resolvedTheme === "dark" ? darkTheme.token : lightTheme.token),
+          ...baseTheme.token,
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif",
           fontFamilyCode: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
-          borderRadius: 7,
-          borderRadiusLG: 8,
-          controlHeight: 34,
-          fontSize: 13,
-          lineWidth: 1,
+          // 经典主题维持紧凑的运维面板密度；插画风格使用自带的宽松尺寸。
+          ...(themeStyle === "classic"
+            ? {
+                borderRadius: 7,
+                borderRadiusLG: 8,
+                controlHeight: 34,
+                fontSize: 13,
+                lineWidth: 1,
+              }
+            : {}),
         },
       }}
     >

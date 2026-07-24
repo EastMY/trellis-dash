@@ -12,7 +12,8 @@ import {
   FundProjectionScreenOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { App, Button, Empty, Space, Spin, Statistic, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Empty, Segmented, Space, Spin, Statistic, Tag, Tooltip, Typography } from "antd";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { CodexUsageBarChart } from "../components/CodexUsageBarChart";
@@ -24,9 +25,12 @@ import { StatusTag } from "../components/StatusTag";
 import { TaskCard } from "../components/TaskCard";
 import { useProjectContext } from "../components/AppShell";
 import { relativeDate, shortHash, taskTitle } from "../lib/format";
+import type { CodexUsageMetric, CodexUsageScope } from "../types";
 
 export function OverviewPage() {
   const { project } = useProjectContext();
+  const [codexUsageScope, setCodexUsageScope] = useState<CodexUsageScope>("project");
+  const [codexUsageMetric, setCodexUsageMetric] = useState<CodexUsageMetric>("tokens");
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -34,8 +38,9 @@ export function OverviewPage() {
     queryFn: () => api.getDashboard(project.id),
   });
   const codexUsageQuery = useQuery({
-    queryKey: ["project", project.id, "codex-usage", "project", 30],
-    queryFn: () => api.getCodexUsage(project.id, "project", 30),
+    // 统计范围会改变服务端响应，必须同时进入 Query key 和请求参数。
+    queryKey: ["project", project.id, "codex-usage", codexUsageScope, 30],
+    queryFn: () => api.getCodexUsage(project.id, codexUsageScope, 30),
   });
   const pushMutation = useMutation({
     mutationFn: () => api.pushGit(project.id),
@@ -117,13 +122,37 @@ export function OverviewPage() {
 
           <section className="section-panel codex-usage-overview" aria-label="Codex 最近 30 天使用统计">
             <div className="section-heading">
-              <div>
+              <div className="codex-usage-overview-title">
                 <Typography.Title level={4}>Codex 使用统计</Typography.Title>
-                <Typography.Text type="secondary">当前项目 · 最近 30 天</Typography.Text>
+                <Segmented
+                  className="codex-usage-text-switch"
+                  size="small"
+                  aria-label="统计范围"
+                  value={codexUsageScope}
+                  options={[
+                    { label: "当前项目", value: "project" },
+                    { label: "全部会话", value: "all" },
+                  ]}
+                  onChange={(value) => setCodexUsageScope(value as CodexUsageScope)}
+                />
+                <Typography.Text type="secondary">最近 30 天</Typography.Text>
               </div>
-              <Link to="codex-usage">
-                <Button size="small" icon={<FundProjectionScreenOutlined />}>查看详情</Button>
-              </Link>
+              <div className="codex-usage-overview-actions">
+                <Segmented
+                  className="codex-usage-text-switch"
+                  size="small"
+                  aria-label="图表指标"
+                  value={codexUsageMetric}
+                  options={[
+                    { label: "Token", value: "tokens" },
+                    { label: "费用", value: "cost" },
+                  ]}
+                  onChange={(value) => setCodexUsageMetric(value as CodexUsageMetric)}
+                />
+                <Link to="codex-usage">
+                  <Button size="small" icon={<FundProjectionScreenOutlined />}>查看详情</Button>
+                </Link>
+              </div>
             </div>
             {codexUsageQuery.isLoading ? (
               <div className="codex-usage-overview-loading" aria-label="正在加载 Codex 使用统计">
@@ -136,7 +165,7 @@ export function OverviewPage() {
               <>
                 <CodexUsageSummary data={codexUsageQuery.data} compact />
                 {codexUsageQuery.data.sessionCount > 0 ? (
-                  <CodexUsageBarChart items={codexUsageQuery.data.items} metric="tokens" compact />
+                  <CodexUsageBarChart items={codexUsageQuery.data.items} metric={codexUsageMetric} compact />
                 ) : (
                   <Typography.Text type="secondary">最近 30 天暂无匹配会话</Typography.Text>
                 )}

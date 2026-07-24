@@ -317,7 +317,7 @@ export function AppShell() {
               })}
             </div>
             <Tooltip title="添加项目">
-              <Button icon={<FolderAddOutlined />} onClick={() => setAddOpen(true)} aria-label="添加项目" />
+              <Button className="project-add-button" icon={<FolderAddOutlined />} onClick={() => setAddOpen(true)} aria-label="添加项目" />
             </Tooltip>
           </div>
           <Space size={12} className="header-status">

@@ -10,7 +10,7 @@ interface CodexUsageBarChartProps {
 }
 
 function shortDate(date: string): string {
-  return `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+  return date.slice(8, 10);
 }
 
 export function formatCodexUsageValue(metric: CodexUsageMetric, value: number): string {
@@ -33,17 +33,20 @@ export function CodexUsageBarChart({ items, metric, compact = false }: CodexUsag
       type: "interval",
       data: rows,
       paddingTop: compact ? 4 : 12,
-      paddingRight: compact ? 2 : 16,
-      paddingBottom: compact ? 2 : 34,
-      paddingLeft: compact ? 2 : 52,
+      paddingRight: compact ? 0 : 16,
+      paddingBottom: compact ? 18 : 34,
+      paddingLeft: compact ? 0 : 52,
       encode: { x: "date", y: "value", color: "priceState" },
       scale: {
-        x: { padding: 0.18 },
+        x: { padding: compact ? 0.05 : 0.18 },
         y: { domainMin: 0, nice: true },
         color: { domain: ["已计价", "部分未计价"], range: [accent, warning] },
       },
       axis: compact
-        ? { x: false, y: false }
+        ? {
+            x: { title: false, labelFormatter: shortDate, labelFill: text, labelFontSize: 10, tick: false },
+            y: false,
+          }
         : {
             x: { title: false, labelFormatter: shortDate, labelFill: text, tick: false },
             y: { title: false, labelFill: text, gridStroke: grid, tick: false },
@@ -62,7 +65,7 @@ export function CodexUsageBarChart({ items, metric, compact = false }: CodexUsag
     <div className={`codex-usage-chart-wrap${compact ? " codex-usage-chart-wrap--compact" : ""}`}>
       <G2Chart
         className="codex-usage-chart"
-        height={compact ? 92 : 278}
+        height={compact ? 104 : 278}
         ariaLabel={`Codex 每日${metricLabel}柱状图`}
         buildOptions={buildOptions}
       />
