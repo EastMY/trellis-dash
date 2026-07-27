@@ -269,8 +269,9 @@ func (s *Service) aggregate(query Query, skipped int) Summary {
 			result.TotalTokens += event.Usage.TotalTokens
 			if price, ok := priceForModel(event.Model, relayModels); ok {
 				cost := usageCost(event.Usage, price)
-				day.CostUSD += cost
-				result.TotalCostUSD += cost
+				day.CostBreakdown.add(cost)
+				day.CostUSD += cost.total()
+				result.TotalCostUSD += cost.total()
 			} else if event.Usage.hasTokens() {
 				day.CostPartial = true
 				result.CostPartial = true

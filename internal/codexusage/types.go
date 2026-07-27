@@ -28,10 +28,32 @@ type Query struct {
 }
 
 type DayItem struct {
-	Date        string  `json:"date"`
-	Tokens      int64   `json:"tokens"`
-	CostUSD     float64 `json:"costUsd"`
-	CostPartial bool    `json:"costPartial"`
+	Date          string        `json:"date"`
+	Tokens        int64         `json:"tokens"`
+	CostUSD       float64       `json:"costUsd"`
+	CostBreakdown CostBreakdown `json:"costBreakdown"`
+	CostPartial   bool          `json:"costPartial"`
+}
+
+// CostBreakdown 是每日费用堆叠图使用的稳定费用分类。
+// 当前 Codex 日志未提供缓存写入 Token，因此 CacheWriteUSD 会保持为零，
+// 但仍保留该字段，避免前端用总费用反推或混淆费用口径。
+type CostBreakdown struct {
+	UncachedInputUSD float64 `json:"uncachedInputUsd"`
+	CachedInputUSD   float64 `json:"cachedInputUsd"`
+	OutputUSD        float64 `json:"outputUsd"`
+	CacheWriteUSD    float64 `json:"cacheWriteUsd"`
+}
+
+func (cost CostBreakdown) total() float64 {
+	return cost.UncachedInputUSD + cost.CachedInputUSD + cost.OutputUSD + cost.CacheWriteUSD
+}
+
+func (cost *CostBreakdown) add(other CostBreakdown) {
+	cost.UncachedInputUSD += other.UncachedInputUSD
+	cost.CachedInputUSD += other.CachedInputUSD
+	cost.OutputUSD += other.OutputUSD
+	cost.CacheWriteUSD += other.CacheWriteUSD
 }
 
 type Summary struct {

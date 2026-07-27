@@ -29,7 +29,18 @@ function usage(scope: CodexUsageScope, days: CodexUsageDays): CodexUsageResponse
     costPartial: true,
     sessionCount: 2,
     skippedFiles: 1,
-    items: [{ date: "2026-07-21", tokens: 3000, costUsd: 0.123456, costPartial: true }],
+    items: [{
+      date: "2026-07-21",
+      tokens: 3000,
+      costUsd: 0.123456,
+      costBreakdown: {
+        uncachedInputUsd: 0.02,
+        cachedInputUsd: 0.003456,
+        outputUsd: 0.1,
+        cacheWriteUsd: 0,
+      },
+      costPartial: true,
+    }],
   };
 }
 

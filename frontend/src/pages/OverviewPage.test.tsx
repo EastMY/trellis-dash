@@ -75,7 +75,18 @@ const codexUsage: CodexUsageResponse = {
   costPartial: false,
   sessionCount: 2,
   skippedFiles: 0,
-  items: [{ date: "2026-07-21", tokens: 1234, costUsd: 0.012345, costPartial: false }],
+  items: [{
+    date: "2026-07-21",
+    tokens: 1234,
+    costUsd: 0.012345,
+    costBreakdown: {
+      uncachedInputUsd: 0.002,
+      cachedInputUsd: 0.000345,
+      outputUsd: 0.01,
+      cacheWriteUsd: 0,
+    },
+    costPartial: false,
+  }],
 };
 
 describe("OverviewPage Git 工作区", () => {

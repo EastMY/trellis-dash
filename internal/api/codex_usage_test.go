@@ -44,7 +44,12 @@ func TestCodexUsageAPIContract(t *testing.T) {
 	}
 	fake := &fakeCodexUsage{result: codexusage.Summary{
 		DateFrom: "2026-06-22", DateTo: "2026-07-21", TotalTokens: 42,
-		Items: []codexusage.DayItem{},
+		Items: []codexusage.DayItem{{
+			Date: "2026-07-21",
+			CostBreakdown: codexusage.CostBreakdown{
+				UncachedInputUSD: 0.01, CachedInputUSD: 0.002, OutputUSD: 0.03,
+			},
+		}},
 	}}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := newServer(repository, nil, nil, logger, fake)
@@ -62,6 +67,11 @@ func TestCodexUsageAPIContract(t *testing.T) {
 	}
 	if payload.TotalTokens != 42 || payload.Items == nil {
 		t.Fatalf("响应契约异常: %+v", payload)
+	}
+	if payload.Items[0].CostBreakdown.UncachedInputUSD != 0.01 ||
+		payload.Items[0].CostBreakdown.CachedInputUSD != 0.002 ||
+		payload.Items[0].CostBreakdown.OutputUSD != 0.03 {
+		t.Fatalf("费用分类响应契约异常: %+v", payload.Items[0].CostBreakdown)
 	}
 	etag := response.Header().Get("ETag")
 	if etag == "" || response.Header().Get("Cache-Control") != "private, no-cache" {

@@ -84,12 +84,14 @@ func priceForModel(model string, relayModels map[string]string) (modelPrice, boo
 	return price, ok
 }
 
-func usageCost(usage tokenUsage, price modelPrice) float64 {
+func usageCost(usage tokenUsage, price modelPrice) CostBreakdown {
 	uncached := usage.InputTokens - usage.CachedInputTokens
 	if uncached < 0 {
 		uncached = 0
 	}
-	return (float64(uncached)*price.Input +
-		float64(usage.CachedInputTokens)*price.CachedInput +
-		float64(usage.OutputTokens)*price.Output) / 1_000_000
+	return CostBreakdown{
+		UncachedInputUSD: float64(uncached) * price.Input / 1_000_000,
+		CachedInputUSD:   float64(usage.CachedInputTokens) * price.CachedInput / 1_000_000,
+		OutputUSD:        float64(usage.OutputTokens) * price.Output / 1_000_000,
+	}
 }

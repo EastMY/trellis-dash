@@ -55,6 +55,14 @@ func TestSummaryParsesFiltersPricesAndLocalDates(t *testing.T) {
 	if !almostEqual(project.TotalCostUSD, 0.00355) {
 		t.Fatalf("已知模型费用 = %.9f，期望 0.00355", project.TotalCostUSD)
 	}
+	breakdown := project.Items[6].CostBreakdown
+	if !almostEqual(breakdown.UncachedInputUSD, 0.002) ||
+		!almostEqual(breakdown.CachedInputUSD, 0.00005) ||
+		!almostEqual(breakdown.OutputUSD, 0.0015) ||
+		breakdown.CacheWriteUSD != 0 ||
+		!almostEqual(breakdown.total(), project.Items[6].CostUSD) {
+		t.Fatalf("每日费用分类异常: %+v", breakdown)
+	}
 
 	all, err := service.Summary(context.Background(), Query{Scope: ScopeAll, Days: 7})
 	if err != nil {

@@ -23,6 +23,10 @@
   --error-border: #563638;
   --error-bg: #25191a;
   --chart-grid: #293029;
+  --chart-cost-uncached-input: #70b892;
+  --chart-cost-cached-input: #6f9fc4;
+  --chart-cost-output: #c9a96e;
+  --chart-cost-cache-write: #b889b8;
   --focus-ring: #dbe7de;
   --card-hover: #181e19;
   --priority-p0-text: #e69393;
@@ -102,6 +106,10 @@
   --error-border: #e2bcbc;
   --error-bg: #fff1f0;
   --chart-grid: #d8e0da;
+  --chart-cost-uncached-input: #327a52;
+  --chart-cost-cached-input: #3b6f9f;
+  --chart-cost-output: #95631f;
+  --chart-cost-cache-write: #7e4f8f;
   --focus-ring: #327a52;
   --card-hover: #f3f8f4;
   --priority-p0-text: #9f3333;
@@ -177,6 +185,10 @@
   --error-border: #2c2c2c;
   --error-bg: #fff1f0;
   --chart-grid: #e8e0d0;
+  --chart-cost-uncached-input: #52c41a;
+  --chart-cost-cached-input: #1677ff;
+  --chart-cost-output: #fa8c16;
+  --chart-cost-cache-write: #722ed1;
   --focus-ring: #2c2c2c;
   --card-hover: #fff0f6;
   --priority-p0-text: #c92a2a;
@@ -254,6 +266,10 @@
   --error-border: #e8dfc8;
   --error-bg: #3d2420;
   --chart-grid: #4a4438;
+  --chart-cost-uncached-input: #6fdd4b;
+  --chart-cost-cached-input: #69b1ff;
+  --chart-cost-output: #ffd93d;
+  --chart-cost-cache-write: #d3adf7;
   --focus-ring: #f3ede1;
   --card-hover: #332e26;
   --priority-p0-text: #ff8787;
@@ -812,9 +828,31 @@ pre,
 .codex-usage-chart-panel { min-width: 0; overflow: hidden; }
 .codex-usage-chart-wrap { position: relative; width: 100%; min-width: 0; }
 .codex-usage-chart { width: 100%; height: 278px; }
+.codex-usage-cost-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  list-style: none;
+}
+.codex-usage-cost-legend li { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.codex-usage-cost-swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; }
+.codex-usage-cost-swatch--uncached-input { background: var(--chart-cost-uncached-input); }
+.codex-usage-cost-swatch--cached-input { background: var(--chart-cost-cached-input); }
+.codex-usage-cost-swatch--output { background: var(--chart-cost-output); }
+.codex-usage-cost-swatch--cache-write { background: var(--chart-cost-cache-write); }
 .codex-usage-chart-wrap--compact {
   width: calc(100% + 16px);
   margin: 0 -8px -12px;
+}
+.codex-usage-chart-wrap--compact .codex-usage-cost-legend {
+  gap: 3px 10px;
+  margin: 0 8px 2px;
+  font-size: 10px;
 }
 .codex-usage-chart-wrap--compact .codex-usage-chart { height: 104px; }
 .codex-usage-empty-label { display: block; padding: 28px; color: var(--text-tertiary); text-align: center; }

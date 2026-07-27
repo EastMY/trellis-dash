@@ -342,7 +342,15 @@ export interface CodexUsageItem {
   date: string;
   tokens: number;
   costUsd: number;
+  costBreakdown: CodexUsageCostBreakdown;
   costPartial: boolean;
+}
+
+export interface CodexUsageCostBreakdown {
+  uncachedInputUsd: number;
+  cachedInputUsd: number;
+  outputUsd: number;
+  cacheWriteUsd: number;
 }
 
 export interface CodexUsageResponse {
